@@ -54,9 +54,9 @@ cleanall: clean
 	rm -rf session*
 
 update:
-	mkdir -p  $(CSTR_DIR_PRJ)/build/linux ;\
-	cd        $(CSTR_DIR_PRJ)/build/linux ;\
-	cmake ../..                           ;\
+	mkdir -p  $(CSTR_DIR_PRJ)/build ;\
+	cd        $(CSTR_DIR_PRJ)/build ;\
+	cmake ..                           ;\
 	make  -j4
 
 create: update
