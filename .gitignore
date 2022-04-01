@@ -7,7 +7,7 @@
 /runVTM/VTM/build/linux/Makefile
 /runVTM/VTM/build/linux/source
 /runVTM/VTM/build/windows/.vs
-/runVTM/VTM/build/windows/CMake*
+/runVTM/VTM/build/windows/CMake*git 
 /runVTM/VTM/build/windows/cmake*
 /runVTM/VTM/build/windows/source
 /runVTM/VTM/build/windows/ALL_BUILD*
