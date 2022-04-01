@@ -59,24 +59,24 @@ LIST_SEQ_AVAILABLE=(
     "PeopleOnStreet"   150   30  2560  1600   8
 )
 LIST_SEQ=(
-    "BasketballPass"   8     60  416   240    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "BQSquare"         8     60  416   240    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "BlowingBubbles"   8     60  416   240    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "RaceHorses"       8     60  416   240    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "BasketballDrill"  8     60  832   480    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "BQMall"           8     60  832   480    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "PartyScene"       8     60  832   480    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "RaceHorsesC"      8     60  832   480    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "FourPeople"       8     60  1280  720    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "Johnny"           8     60  1280  720    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "KristenAndSara"   8     60  1280  720    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "Kimono"           8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "ParkScene"        8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "Cactus"           8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "BasketballDrive"  8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "BQTerrace"        8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "Traffic"          8     60  2560  1600   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-    "PeopleOnStreet"   8     60  2560  1600   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+     "BasketballPass"   8     60  416   240    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "BQSquare"         8     60  416   240    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "BlowingBubbles"   8     60  416   240    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "RaceHorses"       8     60  416   240    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+     "BasketballDrill"  8     60  832   480    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "BQMall"           8     60  832   480    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "PartyScene"       8     60  832   480    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "RaceHorsesC"      8     60  832   480    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+     "FourPeople"       8     60  1280  720    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "Johnny"           8     60  1280  720    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "KristenAndSara"   8     60  1280  720    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+     "Kimono"           8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "ParkScene"        8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "Cactus"           8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "BasketballDrive"  8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "BQTerrace"        8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "Traffic"          8     60  2560  1600   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    # "PeopleOnStreet"   8     60  2560  1600   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 )
 
 # encoder
