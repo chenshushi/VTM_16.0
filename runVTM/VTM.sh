@@ -70,7 +70,7 @@ LIST_SEQ=(
      "FourPeople"       8     60  1280  720    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
     # "Johnny"           8     60  1280  720    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
     # "KristenAndSara"   8     60  1280  720    8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
-     "Kimono"           8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+    #"Kimono"           8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
     # "ParkScene"        8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
     # "Cactus"           8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
     # "BasketballDrive"  8     60  1920  1080   8    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
