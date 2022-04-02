@@ -372,7 +372,7 @@ protected:
 #if GDR_ENABLED
   Distortion xPatternRefinement(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
                                 const CPelBuf *pcPatternKey, Mv baseRefMv, int iFrac, Mv &rcMvFrac,
-                                bool bAllowUseOfHadamard, bool &rbCleanCandExist);
+                                bool bAllowUseOfHadamard, Distortion Sad_Int_Position[3][3], bool &rbCleanCandExist);
 #else
   Distortion  xPatternRefinement    ( const CPelBuf* pcPatternKey, Mv baseRefMv, int iFrac, Mv& rcMvFrac, bool bAllowUseOfHadamard );
 #endif
@@ -523,7 +523,8 @@ protected:
 
   void xPatternSearch             ( IntTZSearchStruct&    cStruct,
                                     Mv&                   rcMv,
-                                    Distortion&           ruiSAD
+                                    Distortion&           ruiSAD, 
+                                    Distortion Sad_Int_Position[3][3]
                                   );
 
   void xPatternSearchIntRefine(PredictionUnit &pu, IntTZSearchStruct &cStruct, Mv &rcMv, Mv &rcMvPred, int &riMVPIdx,
@@ -535,7 +536,8 @@ protected:
   );
 
   void xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx, IntTZSearchStruct &cStruct,
-                             const Mv &rcMvInt, Mv &rcMvHalf, Mv &rcMvQter, Distortion &ruiCost
+                             const Mv &rcMvInt, Mv &rcMvHalf, Mv &rcMvQter, Distortion &ruiCost,
+                                    Distortion Sad_Int_Position[3][3]
 #if GDR_ENABLED
                              ,
                              bool &rbCleanCandExist
