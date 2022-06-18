@@ -411,6 +411,9 @@ protected:
   inline void xTZ8PointDiamondSearch( IntTZSearchStruct& rcStruct, const int iStartX, const int iStartY, const int iDist, const bool bCheckCornersAtDist1 );
 
   Distortion xGetInterPredictionError( PredictionUnit& pu, PelUnitBuf& origBuf, const RefPicList &eRefPicList = REF_PIC_LIST_X );
+  void       xEqualCoeffComputer_fme(Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride,
+                                     int64_t (*pEqualCoeff)[7], int width, int height);
+  void       xGetPre_fme(Mv MvIntial, IntTZSearchStruct &cStruct, Pel *Pre);
 
 public:
   /// encoder estimation - inter prediction (non-skip)

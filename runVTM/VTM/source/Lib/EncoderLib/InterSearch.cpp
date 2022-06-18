@@ -5094,9 +5094,10 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
     xPatternSearchFracDIF(pu, eRefPicList, refIdxPred, cStruct, rcMv, cMvHalf, cMvQter, ruiCost);
 #endif
     m_pcRdCost->setCostScale( 0 );
-    rcMv <<= 2;
-    rcMv  += ( cMvHalf <<= 1 );
-    rcMv  += cMvQter;
+    // rcMv <<= 2;
+    //rcMv  += ( cMvHalf <<= 1 );
+    //rcMv  += cMvQter;
+     rcMv  = cMvQter;
     uint32_t uiMvBits = m_pcRdCost->getBitsOfVectorWithPredictor( rcMv.getHor(), rcMv.getVer(), cStruct.imvShift );
     ruiBits += uiMvBits;
     ruiCost = ( Distortion ) ( floor( fWeight * ( ( double ) ruiCost - ( double ) m_pcRdCost->getCost( uiMvBits ) ) ) + ( double ) m_pcRdCost->getCost( ruiBits ) );
@@ -6023,7 +6024,168 @@ void InterSearch::xPatternSearchIntRefine(PredictionUnit& pu, IntTZSearchStruct&
 
   return;
 }
+void solveEqual(double dEqualCoeff[7][7], int order, double *dAffinePara)
+{
+  for (int k = 0; k < order; k++)
+  {
+    dAffinePara[k] = 0.;
+  }
 
+  // row echelon
+  for (int i = 1; i < order; i++)
+  {
+    // find column max
+    double temp = fabs(dEqualCoeff[i][i-1]);
+    int tempIdx = i;
+    for (int j = i + 1; j < order + 1; j++)
+    {
+      if ( fabs(dEqualCoeff[j][i-1]) > temp )
+      {
+        temp = fabs(dEqualCoeff[j][i-1]);
+        tempIdx = j;
+      }
+    }
+
+    // swap line
+    if ( tempIdx != i )
+    {
+      for (int j = 0; j < order + 1; j++)
+      {
+        dEqualCoeff[0][j] = dEqualCoeff[i][j];
+        dEqualCoeff[i][j] = dEqualCoeff[tempIdx][j];
+        dEqualCoeff[tempIdx][j] = dEqualCoeff[0][j];
+      }
+    }
+
+    // elimination first column
+    if ( dEqualCoeff[i][i - 1] == 0. )
+    {
+      return;
+    }
+    for (int j = i + 1; j < order + 1; j++)
+    {
+      for (int k = i; k < order + 1; k++)
+      {
+        dEqualCoeff[j][k] = dEqualCoeff[j][k] - dEqualCoeff[i][k] * dEqualCoeff[j][i-1] / dEqualCoeff[i][i-1];
+      }
+    }
+  }
+
+  if (dEqualCoeff[order][order - 1] == 0.)
+  {
+    return;
+  }
+  dAffinePara[order - 1] = dEqualCoeff[order][order] / dEqualCoeff[order][order - 1];
+  for (int i = order - 2; i >= 0; i--)
+  {
+    if ( dEqualCoeff[i + 1][i] == 0. )
+    {
+      for (int k = 0; k < order; k++)
+      {
+        dAffinePara[k] = 0.;
+      }
+      return;
+    }
+    double temp = 0;
+    for (int j = i + 1; j < order; j++)
+    {
+      temp += dEqualCoeff[i+1][j] * dAffinePara[j];
+    }
+    dAffinePara[i] = (dEqualCoeff[i + 1][order] - temp) / dEqualCoeff[i + 1][i];
+  }
+}
+
+void InterSearch::xEqualCoeffComputer_fme(Pel* pResidue, int residueStride, int** ppDerivate, int derivateBufStride, int64_t(*pEqualCoeff)[7], int width, int height)
+{
+    int affineParamNum =2;
+
+    for (int j = 0; j != height; j++)
+    {
+        /*int cy = ((j >> 2) << 2) + 2;*/
+        for (int k = 0; k != width; k++)
+        {
+            int iC[2];
+
+            int idx = j * derivateBufStride + k;
+            /*int cx = ((k >> 2) << 2) + 2;*/
+
+            iC[0] = ppDerivate[0][idx];
+            iC[1] = ppDerivate[1][idx];
+
+            for (int col = 0; col < affineParamNum; col++)
+            {
+                for (int row = 0; row < affineParamNum; row++)
+                {
+                    pEqualCoeff[col + 1][row] += (int64_t)iC[col] * iC[row];
+                }
+                pEqualCoeff[col + 1][affineParamNum] += ((int64_t)iC[col] * pResidue[idx]) << 3;
+            }
+        }
+    }
+}
+void InterSearch::xGetPre_fme(Mv MvIntial, IntTZSearchStruct &cStruct, Pel *Pre)
+{
+    //  Reference pattern initialization (integer scale)
+    Mv MvTmp = MvIntial;
+    MvTmp.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_INT);
+    Mv MvDlt = MvIntial - MvTmp;
+    int         iOffset = MvTmp.hor + MvTmp.ver * cStruct.iRefStride;
+    CPelBuf cPatternRoi(cStruct.piRefY + iOffset, cStruct.iRefStride, *cStruct.pcPatternKey);
+
+
+    const ClpRng& clpRng = m_lumaClpRng;
+    int width = cPatternRoi.width;
+    int height = cPatternRoi.height;
+    int refStride = cPatternRoi.stride;
+
+    int tmpStride = width;
+    int preStride = width;
+    Pel* tmpPtr;
+    Pel* prePtr;
+    int filterSize = NTAPS_LUMA;
+    int halfFilterSize = (filterSize >> 1);
+    int offset_hor = MvDlt.hor < 0 ? -1 : 0;
+    // int offset_ver = rcMvInt.ver < 0 ? -halfFilterSize : -(halfFilterSize - 1);
+    const Pel* refPtr = cPatternRoi.buf - halfFilterSize * refStride + offset_hor;
+    int mv_hor_offset = MvDlt.hor & 3;
+    int mv_ver_offset = MvDlt.ver & 3;
+    // hor
+    //printf("\n\nRef: MV ( %d, %d)\n", mv_hor_offset, mv_ver_offset);
+    //for (int j = 0; j < 16; j++) {
+    //    for (int i = 0; i < 16; i++) {
+    //        printf("%03d ", *(refPtr + j * refStride + i));
+    //    }
+    //    printf("\n");
+    //}
+
+    // const ChromaFormat chFmt = m_currChromaFormat;
+    m_if.filterHor(COMPONENT_Y, refPtr, refStride, m_filteredBlockTmp[0][0], tmpStride, width, height + filterSize,
+               mv_hor_offset << MV_FRACTIONAL_BITS_DIFF, false, clpRng,0, false,false);
+    // m_if.filterHor(COMP_Y, srcPtr + width, srcStride, m_filteredBlockTmp[0][0] + width, intStride, 1, height + filterSize, 0 << MV_FRACTIONAL_BITS_DIFF, false, chFmt, clpRng, false);
+
+    // ver
+    // offset_hor = rcMvInt.hor < 0 ? -1 : 0;
+    int offset_ver = MvDlt.ver < 0 ? 3 : 4;
+    tmpPtr = m_filteredBlockTmp[0][0] + offset_ver * tmpStride;
+    prePtr = m_filteredBlock[0][0][0];
+    //printf("\n\nInter: \n");
+    //for (int j = 0; j < 16; j++) {
+    //    for (int i = 0; i < 16; i++) {
+    //        printf("%03d ", *(tmpPtr + j * tmpStride + i));
+    //    }
+    //    printf("\n");
+    //}
+    m_if.filterVer(COMPONENT_Y, tmpPtr, tmpStride, prePtr, preStride, width + 0, height + 0,
+                   mv_ver_offset << MV_FRACTIONAL_BITS_DIFF, false, true, clpRng, 0, false, false);
+    // Pre = prePtr;
+    //printf("\nPre: MV (%d , %d)\n", mv_hor_offset, mv_ver_offset);
+    //for (int j = 0; j < 16; j++) {
+    //    for (int i = 0; i < 16; i++) {
+    //        printf("%03d ", *(m_filteredBlock[0][0][0] + j * preStride + i));
+    //    }
+    //    printf("\n");
+    //}
+}
 void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
                                         IntTZSearchStruct &cStruct, const Mv &rcMvInt, Mv &rcMvHalf, Mv &rcMvQter,
                                         Distortion &ruiCost
@@ -6090,12 +6252,231 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
     rcMvQter += rcMvHalf;
     rcMvQter <<= 1;
 #if GDR_ENABLED
-    ruiCost = xPatternRefinement(pu, eRefPicList, refIdx, cStruct.pcPatternKey, baseRefMv, 1, rcMvQter,
+    ruiCost = xPatternRefinement(pu, eRefPicList, refIdx, cStruct.pcPatternKey, baseRefMv, 1, baseRefMv,
                                  (!pu.cs->slice->getDisableSATDForRD()), rbCleanCandExist);
 #else
     ruiCost = xPatternRefinement(cStruct.pcPatternKey, baseRefMv, 1, rcMvQter, (!pu.cs->slice->getDisableSATDForRD()));
 #endif
   }
+    //-----------------------------------------------------------
+
+ /* int  horVal = rcMvQter.hor;
+  int  verVal = rcMvQter.ver;
+  Pel* piRef = m_filteredBlock[verVal & 3][horVal & 3][0];
+
+  if (horVal == 2 && (verVal & 1) == 0)
+  {
+      piRef += 1;
+  }
+  if ((horVal & 1) == 0 && verVal == 2)
+  {
+      piRef += (cStruct.pcPatternKey->width + 1);
+  }*/
+
+  //printf("\nTrue Pre:   MV( %d , %d )\n", horVal, verVal); 
+  //for (int j = 0; j < 16; j++)
+  //{
+  //    for (int i = 0; i < 16; i++)
+  //    {
+  //        printf("%03d ", *(piRef + j * (cStruct.pcPatternKey->width + 1) + i));
+  //    }
+  //    printf("\n");
+  //}
+  // ----------------------------------------------
+  // add for affine ME
+  // get ori YUV
+  // const Pel* srcPtr = cPatternRoi.buf;
+  // get pre YUV
+  // xPredAffineBlk(COMP_Y, cu, refPic, acMvTemp, predBuf, false, cu.cs->slice->clpRngs[COMP_Y], refPicList);
+
+  //const ClpRng& clpRng = m_lumaClpRng;
+  int width = cPatternRoi.width;
+  int height = cPatternRoi.height;
+  /*int refStride = cPatternRoi.stride;*/
+
+  Pel* Pre = NULL;
+  int preStride = cPatternRoi.width;
+  xGetPre_fme(rcMvInt, cStruct, Pre); // !!! Pre is wrong
+  // get error
+  Distortion uiDist = std::numeric_limits<Distortion>::max();
+  ;
+  m_cDistParam.cur.buf = m_filteredBlock[0][0][0];
+  CPelBuf oriPxl = *cStruct.pcPatternKey;
+  int oriStride = cStruct.pcPatternKey->stride;
+  //printf("\nOri: \n");
+  //for (int j = 0; j < 16; j++) {
+  //    for (int i = 0; i < 16; i++) {
+  //        printf("%03d ", *(oriPxl.buf + j * preStride + i));
+  //    }
+  //    printf("\n");
+  //}
+  m_pcRdCost->setDistParam(m_cDistParam, *cStruct.pcPatternKey, m_filteredBlock[0][0][0], preStride, m_lumaClpRng.bd,
+                           COMPONENT_Y, 0, true);
+  uiDist = m_cDistParam.distFunc(m_cDistParam);
+  m_pcRdCost->setCostScale(0);
+  uiDist += m_pcRdCost->getCostOfVectorWithPredictor(rcMvInt.hor, rcMvInt.ver, 0);
+  // set iter times
+  int iIterTime = 7;// bBi ? 3 : 5;
+  iIterTime++;
+  // for loop : use gradient to update mv
+  // get Error Matrix
+  const int bufStride     = oriStride;
+  const int predBufStride = preStride;
+  int* pdDerivate[2];
+  pdDerivate[0] = m_tmpAffiDeri[0];
+  pdDerivate[1] = m_tmpAffiDeri[1];
+  int iParaNum = 3;
+  int64_t i64EqualCoeff[7][7]; // !!! actually, the arry size should be [3][3]
+  double pdEqualCoeff[7][7];  // double** pdEqualCoeff;
+  Mv intmv = rcMvInt;
+  intmv.changePrecision(MV_PRECISION_INT, MV_PRECISION_QUARTER);
+  Mv MvTemp = intmv;
+  Distortion uiCostBest = std::numeric_limits<Distortion>::max();
+  
+  //pdEqualCoeff = new double* [iParaNum];
+  //for (int i = 0; i < iParaNum; i++)
+  //{
+  //    pdEqualCoeff[i] = new double[iParaNum];
+  //}
+  for (int iter = 0; iter < iIterTime; iter++)    // iterate loop
+  {
+      /*********************************************************************************
+      *                         use gradient to update mv
+      *********************************************************************************/
+  
+  
+      // !!! memcpy(prevIterMv[iter], acMvTemp, sizeof(Mv) * 3);
+      // 
+      // 
+      // get Error Matrix
+      const Pel* pOrg = oriPxl.buf;
+      Pel* pPred = m_filteredBlock[0][0][0];
+      Pel* piError = m_tmpAffiError;
+      for (int j = 0; j < height; j++)
+      {
+          for (int i = 0; i < width; i++)
+          {
+              piError[i + j * width] = pOrg[i] - pPred[i];
+          }
+          pOrg += bufStride;
+          pPred += predBufStride;
+      }
+  
+      //// sobel x direction
+      //// -1 0 1
+      //// -2 0 2
+      //// -1 0 1
+      pPred = m_filteredBlock[0][0][0];
+      m_HorizontalSobelFilter(pPred, predBufStride, pdDerivate[0], width, width, height);
+      //
+      //// sobel y direction
+      //// -1 -2 -1
+      ////  0  0  0
+      ////  1  2  1
+      m_VerticalSobelFilter(pPred, predBufStride, pdDerivate[1], width, width, height);
+      //
+      ////// solve delta x and y
+      for (int row = 0; row < iParaNum; row++)
+      {
+          memset(&i64EqualCoeff[row][0], 0, iParaNum * sizeof(int64_t));
+      }
+      
+      xEqualCoeffComputer_fme(piError, width, pdDerivate, width, i64EqualCoeff, width, height);
+      
+      for (int row = 0; row < iParaNum; row++)
+      {
+          for (int i = 0; i < iParaNum; i++)
+          {
+              pdEqualCoeff[row][i] = (double)i64EqualCoeff[row][i];
+          }
+      }
+       
+       double dAffinePara[6];
+       double dDeltaMv[6];
+       Mv acDeltaMv[3];
+       
+       solveEqual(pdEqualCoeff, 2, dAffinePara); // !!! the affineParaNum should be 2
+       
+       // convert to delta mv
+       dDeltaMv[0] = dAffinePara[0];
+       dDeltaMv[1] = dAffinePara[1];
+
+      //  const int normShiftTab[3] = { MV_PRECISION_QUARTER - MV_PRECISION_INT, MV_PRECISION_SIXTEENTH - MV_PRECISION_INT,
+      //                                MV_PRECISION_QUARTER - MV_PRECISION_INT };
+      //  const int stepShiftTab[3] = { MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER,
+      //                                MV_PRECISION_INTERNAL - MV_PRECISION_SIXTEENTH,
+      //                                MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER };
+      //  const int multiShift      = 1 << normShiftTab[pu.cu->imv];
+      //  const int mvShift         = stepShiftTab[pu.cu->imv];
+       
+       acDeltaMv[0] = Mv((int)dDeltaMv[0], (int)dDeltaMv[1]);
+      //  bool bAllZero = false;
+      //  for (int i = 0; i < 1; i++)
+      //  {
+      //      Mv deltaMv = acDeltaMv[i];
+      //      if (pu.cu->imv == 2)
+      //      {
+      //          deltaMv.roundToPrecision(MV_PRECISION_INTERNAL, MV_PRECISION_HALF);
+      //      }
+      //      if (deltaMv.hor != 0 || deltaMv.ver != 0)
+      //      {
+      //          bAllZero = false;
+      //          break;
+      //      }
+      //      bAllZero = true;
+      //  }
+       
+      //  if (bAllZero)
+      //      break;
+       
+       // do motion compensation with updated mv
+       {
+           // MV 
+           Mv TMP = acDeltaMv[0];
+           if (acDeltaMv[0].hor != 0 && acDeltaMv[0].ver != 0) 
+               
+           TMP.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+           //printf("inter    %d,%d\n", TMP.hor, TMP.ver);
+           MvTemp += TMP;
+           // printf("!!!!!!!!!!!!!        (%03d,%03d)   (%03d,%03d)  \n", acDeltaMv[0].hor, acDeltaMv[0].ver, MvTemp.hor, MvTemp.ver);
+           MvTemp.hor = Clip3(MV_MIN, MV_MAX, MvTemp.hor);
+           MvTemp.ver = Clip3(MV_MIN, MV_MAX, MvTemp.ver);
+           // MvTemp.roundAffinePrecInternal2Amvr(cu.imv);
+           clipMv(MvTemp, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
+           // Pre
+           xGetPre_fme(MvTemp, cStruct, Pre); // !!!
+       }
+
+       
+       // get error
+       m_cDistParam.cur.buf = m_filteredBlock[0][0][0];
+      //  CPelBuf oriPxl = *cStruct.pcPatternKey;
+       /*int oriStride = cStruct.pcPatternKey->stride;*/
+
+       m_pcRdCost->setDistParam(m_cDistParam, *cStruct.pcPatternKey, m_filteredBlock[0][0][0], preStride,
+                                m_lumaClpRng.bd, COMPONENT_Y, 0, true);
+       Distortion uiCostTemp = m_cDistParam.distFunc(m_cDistParam);
+       m_pcRdCost->setCostScale(0);
+       uiCostTemp += m_pcRdCost->getCostOfVectorWithPredictor(MvTemp.hor, MvTemp.ver, 0);
+       xGetPre_fme(MvTemp, cStruct, Pre); // !!!
+       // store best cost and mv
+       if (uiCostTemp < uiCostBest)
+       {
+           uiCostBest = uiCostTemp;
+           // uiBitsBest = uiBitsTemp;
+           //printf("ITer : %d  \n", iter);
+           //printf("ORI INT MV  : (%03d, %03d)\n", rcMvInt.hor, rcMvInt.ver);
+           //printf("4 : (%d, %d )  After : ( %d, %d ) \n", rcMvQter.hor, rcMvQter.ver, MvTemp.hor, MvTemp.ver);
+           rcMvQter = MvTemp;
+
+
+       }
+  }
+
+  //// free buffer
+  //for (int i = 0; i < iParaNum; i++)
+  //    delete[]pdEqualCoeff[i];
+  //delete[]pdEqualCoeff;
 }
 
 Distortion InterSearch::xGetSymmetricCost( PredictionUnit& pu, PelUnitBuf& origBuf, RefPicList eCurRefPicList, const MvField& cCurMvField, MvField& cTarMvField, int bcwIdx )
@@ -8081,76 +8462,6 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
   }
 }
 
-void solveEqual(double dEqualCoeff[7][7], int order, double *dAffinePara)
-{
-  for (int k = 0; k < order; k++)
-  {
-    dAffinePara[k] = 0.;
-  }
-
-  // row echelon
-  for (int i = 1; i < order; i++)
-  {
-    // find column max
-    double temp = fabs(dEqualCoeff[i][i-1]);
-    int tempIdx = i;
-    for (int j = i + 1; j < order + 1; j++)
-    {
-      if ( fabs(dEqualCoeff[j][i-1]) > temp )
-      {
-        temp = fabs(dEqualCoeff[j][i-1]);
-        tempIdx = j;
-      }
-    }
-
-    // swap line
-    if ( tempIdx != i )
-    {
-      for (int j = 0; j < order + 1; j++)
-      {
-        dEqualCoeff[0][j] = dEqualCoeff[i][j];
-        dEqualCoeff[i][j] = dEqualCoeff[tempIdx][j];
-        dEqualCoeff[tempIdx][j] = dEqualCoeff[0][j];
-      }
-    }
-
-    // elimination first column
-    if ( dEqualCoeff[i][i - 1] == 0. )
-    {
-      return;
-    }
-    for (int j = i + 1; j < order + 1; j++)
-    {
-      for (int k = i; k < order + 1; k++)
-      {
-        dEqualCoeff[j][k] = dEqualCoeff[j][k] - dEqualCoeff[i][k] * dEqualCoeff[j][i-1] / dEqualCoeff[i][i-1];
-      }
-    }
-  }
-
-  if (dEqualCoeff[order][order - 1] == 0.)
-  {
-    return;
-  }
-  dAffinePara[order - 1] = dEqualCoeff[order][order] / dEqualCoeff[order][order - 1];
-  for (int i = order - 2; i >= 0; i--)
-  {
-    if ( dEqualCoeff[i + 1][i] == 0. )
-    {
-      for (int k = 0; k < order; k++)
-      {
-        dAffinePara[k] = 0.;
-      }
-      return;
-    }
-    double temp = 0;
-    for (int j = i + 1; j < order; j++)
-    {
-      temp += dEqualCoeff[i+1][j] * dAffinePara[j];
-    }
-    dAffinePara[i] = (dEqualCoeff[i + 1][order] - temp) / dEqualCoeff[i + 1][i];
-  }
-}
 
 void InterSearch::xCheckBestAffineMVP( PredictionUnit &pu, AffineAMVPInfo &affineAMVPInfo, RefPicList eRefPicList, Mv acMv[3], Mv acMvPred[3], int& riMVPIdx, uint32_t& ruiBits, Distortion& ruiCost )
 {
