@@ -117,6 +117,8 @@ private:
   PelStorage      m_tmpAffiStorage;
   Pel*            m_tmpAffiError;
   int*            m_tmpAffiDeri[2];
+  int*            m_L0_Grad[2];
+  int*            m_L1_Grad[2];
 
   CodingStructure ****m_pSplitCS;
   CodingStructure ****m_pFullCS;
@@ -410,7 +412,15 @@ protected:
   inline void xTZ8PointSquareSearch ( IntTZSearchStruct& rcStruct, const int iStartX, const int iStartY, const int iDist );
   inline void xTZ8PointDiamondSearch( IntTZSearchStruct& rcStruct, const int iStartX, const int iStartY, const int iDist, const bool bCheckCornersAtDist1 );
 
-  Distortion xGetInterPredictionError( PredictionUnit& pu, PelUnitBuf& origBuf, const RefPicList &eRefPicList = REF_PIC_LIST_X );
+  Distortion xGetInterPredictionError(PredictionUnit &pu, PelUnitBuf &origBuf,
+                                      const RefPicList &eRefPicList = REF_PIC_LIST_X);
+  void       xEqualCoeffComputer_fme(Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride,
+                                     int64_t (*pEqualCoeff)[7], int width, int height);
+  void       xGetPre_fme(Mv MvIntial, IntTZSearchStruct cStruct, bool isL0);
+  void       xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy, CPelBuf *L0_cPatternRoi,
+                                 CPelBuf *L1_cPatternRoi, IntTZSearchStruct &L0_cStruct, IntTZSearchStruct &L1_cStruct,
+                                 Mv L0_InitMv, Mv L1_InitMv, Mv L0_MVP, Mv L1_MVP, Mv &L0_finalMv, Mv &L1_finalMv,
+                                 bool bi);
 
 public:
   /// encoder estimation - inter prediction (non-skip)
@@ -498,6 +508,10 @@ protected:
   void xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred, int refIdxPred,
                          Mv &rcMv, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits, Distortion &ruiCost,
                          const AMVPInfo &amvpInfo, bool &rbCleanCandExist, bool bBi = false);
+  void xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred, int refIdxPred,
+                         Mv &rcMv, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits, Distortion &ruiCost,
+                         const AMVPInfo &amvpInfo, bool &rbCleanCandExist, bool bBi, Mv L0_InitMv, Mv L1_InitMv,
+                         Mv L0_MVP, Mv L1_MVPMv, Mv &L0_finalMv, Mv &L1_finalMv);
 #else
   void xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred, int refIdxPred,
                          Mv &rcMv, int &riMVPIdx, uint32_t &ruiBits, Distortion &ruiCost, const AMVPInfo &amvpInfo,
@@ -535,7 +549,8 @@ protected:
   );
 
   void xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx, IntTZSearchStruct &cStruct,
-                             const Mv &rcMvInt, Mv &rcMvHalf, Mv &rcMvQter, Distortion &ruiCost
+                             Mv &best_P_InitMv, const Mv &rcMvInt, Mv &rcMvHalf, Mv &rcMvQter, Distortion &ruiCost,
+                             bool bBi
 #if GDR_ENABLED
                              ,
                              bool &rbCleanCandExist

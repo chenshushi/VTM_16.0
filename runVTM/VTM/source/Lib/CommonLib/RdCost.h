@@ -308,6 +308,14 @@ public:
     return uiLength2 + ( floorLog2(uiTemp2) << 1 );
   }
   Distortion     getCostOfVectorWithPredictor( const int x, const int y, const unsigned imvShift )  { return Distortion( m_motionLambda * getBitsOfVectorWithPredictor(x, y, imvShift )); }
+
+  Distortion getCostOfVectorWithBiPre(const Mv L0_Mv, const Mv L1_Mv,const Mv L0_MVP,const Mv L1_MVP, const unsigned imvShift)
+  {
+    return Distortion(m_motionLambda * ( xGetExpGolombNumberOfBits(((L0_Mv.hor * (1 << m_iCostScale)) - L0_MVP.getHor()) >> imvShift) +
+                                         xGetExpGolombNumberOfBits(((L0_Mv.ver * (1 << m_iCostScale)) - L0_MVP.getVer()) >> imvShift) +
+                                         xGetExpGolombNumberOfBits(((L1_Mv.hor * (1 << m_iCostScale)) - L1_MVP.getHor()) >> imvShift) +
+                                         xGetExpGolombNumberOfBits(((L1_Mv.ver * (1 << m_iCostScale)) - L1_MVP.getVer()) >> imvShift)  ));
+  }
   uint32_t       getBitsOfVectorWithPredictor(const int x, const int y, const unsigned imvShift)
   {
     return xGetExpGolombNumberOfBits(((x * (1 << m_iCostScale)) - m_mvPredictor.getHor()) >> imvShift)

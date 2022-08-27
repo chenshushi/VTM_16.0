@@ -121,6 +121,7 @@ struct AreaBuf : public Size
   void extendBorderPel(unsigned marginX, unsigned marginY);
   void padBorderPel         ( unsigned marginX, unsigned marginY, int dir );
   void addWeightedAvg       ( const AreaBuf<const T> &other1, const AreaBuf<const T> &other2, const ClpRng& clpRng, const int8_t bcwIdx);
+  void addWeightedAvg_bi    ( const AreaBuf<const T> &other1, const AreaBuf<const T> &other2, const ClpRng& clpRng, const int8_t bcwIdx);
   void removeWeightHighFreq ( const AreaBuf<T>& other, const bool bClip, const ClpRng& clpRng, const int8_t iBcwWeight);
   void addAvg               ( const AreaBuf<const T> &other1, const AreaBuf<const T> &other2, const ClpRng& clpRng );
   void removeHighFreq       ( const AreaBuf<T>& other, const bool bClip, const ClpRng& clpRng);

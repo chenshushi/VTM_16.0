@@ -389,6 +389,38 @@ void paddingCore(Pel *ptr, int stride, int width, int height, int padSize)
     memcpy(ptrTemp2 + (i * stride), (ptrTemp2), numBytes);
   }
 }
+
+template<>
+void AreaBuf<Pel>::addWeightedAvg_bi(const AreaBuf<const Pel> &other1, const AreaBuf<const Pel> &other2, const ClpRng& clpRng, const int8_t bcwIdx)
+{
+  const int8_t w0 = getBcwWeight(bcwIdx, REF_PIC_LIST_0);
+  const int8_t w1 = getBcwWeight(bcwIdx, REF_PIC_LIST_1);
+  const int8_t log2WeightBase = g_BcwLog2WeightBase;
+
+  const Pel* src0 = other1.buf;
+  const Pel* src2 = other2.buf;
+  Pel* dest = buf;
+
+  const unsigned src1Stride = other1.stride;
+  const unsigned src2Stride = other2.stride;
+  const unsigned destStride = stride;
+  const int clipbd = clpRng.bd;
+  const int shiftNum = IF_INTERNAL_FRAC_BITS(clipbd) + log2WeightBase;
+  const int offset = (1 << (shiftNum - 1)) + (IF_INTERNAL_OFFS << log2WeightBase);
+
+#define ADD_AVG_OP( ADDR ) dest[ADDR] = ClipPel( rightShift( ( src0[ADDR]*w0 + src2[ADDR]*w1 + 4 ), 3 ), clpRng )
+
+#define ADD_AVG_INC     \
+    src0 += src1Stride; \
+    src2 += src2Stride; \
+    dest += destStride; \
+
+  SIZE_AWARE_PER_EL_OP(ADD_AVG_OP, ADD_AVG_INC);
+
+#undef ADD_AVG_OP
+#undef ADD_AVG_INC
+}
+
 template<>
 void AreaBuf<Pel>::addWeightedAvg(const AreaBuf<const Pel> &other1, const AreaBuf<const Pel> &other2, const ClpRng& clpRng, const int8_t bcwIdx)
 {
