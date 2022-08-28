@@ -6539,13 +6539,34 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
                                bool bi)
 {
   CPelBuf    oriPxl    = origBufCopy->Y();
+  int        oriStride = origBufCopy->Y().stride;
   CPelBuf    L0_prePxl = *L0_cStruct.pcPatternKey;
   CPelBuf    L1_prePxl = *L1_cStruct.pcPatternKey;
-  PelUnitBuf Aver_prePxl = *origBufCopy;
-  int        oriStride = origBufCopy->Y().stride;
+  PelUnitBuf Aver_prePxl = m_tmpAffiStorage.getBuf( UnitAreaRelative(*pu.cu, pu) );
   int        width     = L0_cPatternRoi->width;
   int        height    = L0_cPatternRoi->height;
-  int        preStride = L0_cPatternRoi->width;
+  int        preStride = L0_prePxl.stride;
+  // get L0_and L1_CST
+  L0_InitMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+  L1_InitMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+  L0_MVP.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+  L1_MVP.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+  clipMv(L0_InitMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
+  clipMv(L0_InitMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
+  Distortion uiDist    = std::numeric_limits<Distortion>::max();
+  m_cDistParam.cur.buf = Aver_prePxl.bufs[0].buf;
+  m_pcRdCost->setDistParam(m_cDistParam, oriPxl, Aver_prePxl.bufs[0].buf, Aver_prePxl.bufs[0].stride, m_lumaClpRng.bd,
+                           COMPONENT_Y, 0, 1, true);
+  uiDist = m_cDistParam.distFunc(m_cDistParam);
+  m_pcRdCost->setCostScale(0);
+  uiDist += m_pcRdCost->getCostOfVectorWithBiPre(L0_InitMv, L1_InitMv, L0_MVP, L1_MVP, 2);
+  
+    // initial MV and CST
+  Mv         L0_MvTemp  = L0_InitMv;
+  Mv         L1_MvTemp  = L1_InitMv;
+  Distortion uiCostBest = uiDist;
+  L0_finalMv            = L0_InitMv;
+  L1_finalMv            = L1_InitMv;
   //Pel *L0_filteredBlock;
   //Pel *L1_filteredBlock;
   /////////////////////////////
@@ -6554,7 +6575,7 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
    // {
    //   for (int i = 0; i < 16; i++)
    //   {
-   //     printf("%03d ", *(Aver_prePxl.bufs[0].buf + j * Aver_prePxl.bufs[0].stride + i));
+   //     printf("%03d ", *(oriPxl.buf + j * oriPxl.stride + i));
    //   }
    //   printf("\n");
    // }
@@ -6565,7 +6586,7 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
     //{
     //  for (int i = 0; i < 16; i++)
     //  {
-    //    printf("%03d ", *(L0_prePxl.buf + j * preStride + i));
+    //    printf("%03d ", *(L0_prePxl.buf + j * L0_prePxl.stride + i));
     //  }
     //  printf("\n");
     //}
@@ -6576,13 +6597,12 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
     //{
     //  for (int i = 0; i < 16; i++)
     //  {
-    //    printf("%03d ", *(L1_prePxl.buf + j * preStride + i));
+    //    printf("%03d ", *(L1_prePxl.buf + j * L1_prePxl.stride + i));
     //  }
     //  printf("\n");
     //}
     /////////////////////////////
-  L0_InitMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
-  L1_InitMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+
 
   // get Pre
   // xGetPre_fme(iniMvInt, cStruct);xGetPre_fme
@@ -6618,17 +6638,19 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
   //}
  /////////////////////////////
 
-
+    /////////////////////////////
+   //printf("\nORI: \n");
+   // for (int j = 0; j < 16; j++)
+   // {
+   //   for (int i = 0; i < 16; i++)
+   //   {
+   //     printf("%03d ", *(oriPxl.buf + j * oriPxl.stride + i));
+   //   }
+   //   printf("\n");
+   // }
+  /////////////////////////////
   /*Aver_prePxl.addAvg(L0_prePxl, L1_prePxl, clpRng);*/
-  // get L0_and L1_CST
-  Distortion uiDist    = std::numeric_limits<Distortion>::max();
-  m_cDistParam.cur.buf = Aver_prePxl.bufs[0].buf;
-  m_pcRdCost->setDistParam(m_cDistParam, oriPxl, Aver_prePxl.bufs[0].buf, Aver_prePxl.bufs[0].stride, m_lumaClpRng.bd,
-                           COMPONENT_Y, 0, 1, true);
-  uiDist = m_cDistParam.distFunc(m_cDistParam);
-  m_pcRdCost->setCostScale(0);
-  uiDist += m_pcRdCost->getCostOfVectorWithBiPre(L0_InitMv, L1_InitMv, L0_MVP, L0_MVP, 0);
-  
+
   // set iter times
   int iIterTime = 2;
   // for loop : use gradient to update mv
@@ -6648,12 +6670,7 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
 
   int64_t L1_i64EqualCoeff[7][7];   // !!! actually, the arry size should be [3][3]
   double  L1_pdEqualCoeff[7][7];    // double** pdEqualCoeff;
-  // initial MV and CST
-  Mv         L0_MvTemp  = L0_InitMv;
-  Mv         L1_MvTemp  = L1_InitMv;
-  Distortion uiCostBest = uiDist;
-  L0_finalMv            = L0_InitMv;
-  L0_finalMv            = L1_InitMv;
+
   Mv acDeltaMv[3];
   for (int iter = 0; iter < iIterTime; iter++)   // iterate loop
   {
@@ -6663,15 +6680,15 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
     // get Error Matrix
     const Pel *pOrg  = oriPxl.buf;
     Pel *      pPred = Aver_prePxl.bufs[0].buf;
-    // printf("\nFirst  Pre: \n");
-    //  for (int j = 0; j < 16; j++)
-    //  {
-    //    for (int i = 0; i < 16; i++)
-    //    {
-    //      printf("%03d ", *(m_filteredBlock[0][0][0] + j * preStride + i));
-    //    }
-    //    printf("\n");
-    //  }
+     //printf("\nFirst  Pre: \n");
+     // for (int j = 0; j < 16; j++)
+     // {
+     //   for (int i = 0; i < 16; i++)
+     //   {
+     //     printf("%03d ", *(m_filteredBlock[0][0][0] + j * preStride + i));
+     //   }
+     //   printf("\n");
+     // }
     Pel *piError = m_tmpAffiError;
     for (int j = 0; j < height; j++)
     {
@@ -6679,8 +6696,8 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
       {
         piError[i + j * width] = pOrg[i] - pPred[i];
       }
-      pOrg += bufStride;
-      pPred += predBufStride;
+      pOrg += oriStride;
+      pPred += Aver_prePxl.bufs[0].stride;
     }
     //// get Grads
     //// sobel x direction
@@ -6688,15 +6705,15 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
     //// -2 0 2
     //// -1 0 1
     pPred = Aver_prePxl.bufs[0].buf;   // CSS right ????
-    m_HorizontalSobelFilter((Pel *) L0_prePxl.buf, predBufStride, L0_pdDerivate[0], width, width, height);
-    m_HorizontalSobelFilter((Pel *) L1_prePxl.buf, predBufStride, L1_pdDerivate[0], width, width, height);
+    m_HorizontalSobelFilter((Pel *) L0_prePxl.buf, L0_prePxl.stride, L0_pdDerivate[0], width, width, height);
+    m_HorizontalSobelFilter((Pel *) L1_prePxl.buf, L1_prePxl.stride, L1_pdDerivate[0], width, width, height);
     //
     //// sobel y direction
     //// -1 -2 -1
     ////  0  0  0
     ////  1  2  1
-    m_VerticalSobelFilter((Pel *) L0_prePxl.buf, predBufStride, L0_pdDerivate[1], width, width, height);
-    m_VerticalSobelFilter((Pel *) L1_prePxl.buf, predBufStride, L1_pdDerivate[1], width, width, height);
+    m_VerticalSobelFilter((Pel *) L0_prePxl.buf, L0_prePxl.stride, L0_pdDerivate[1], width, width, height);
+    m_VerticalSobelFilter((Pel *) L1_prePxl.buf, L1_prePxl.stride, L1_pdDerivate[1], width, width, height);
     //// get L0 mv
     {
       ////// solve delta x and y
@@ -6782,6 +6799,10 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
       // printf("FME       Haf MV :   (%03d,%03d)\n", rcMvHalf.hor * 2, rcMvHalf.ver * 2 );
       // printf("FME       Qua MV :   (%03d,%03d)\n", FME_TVM.hor, FME_TVM.ver);
       //  printf("Opitical Dlt MV :   ( %d,%d)\n\n", acDeltaMv[0].hor, acDeltaMv[0].ver);
+      if (bi) {
+        TMP.hor = -TMP.hor;
+        TMP.ver = -TMP.ver;
+      }
       TMP.hor = Clip3(-64, 64, TMP.hor);
       TMP.ver = Clip3(-64, 64, TMP.ver);
       TMP.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
@@ -6798,8 +6819,8 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
     // L0 Pre
     xGetPre_fme(L0_MvTemp, L0_cStruct, true); 
     xGetPre_fme(L1_MvTemp, L1_cStruct, false); 
-    CPelBuf a = CPelBuf(m_filteredBlock[0][0][0], bufStride, pu.lumaSize()); 
-    CPelBuf b = CPelBuf(m_filteredBlock[0][0][1], bufStride, pu.lumaSize()); 
+    CPelBuf a = CPelBuf(m_filteredBlock[0][0][0], width, pu.lumaSize());
+    CPelBuf b = CPelBuf(m_filteredBlock[0][0][1], width, pu.lumaSize());
 
     //Aver_prePxl.addAvg(CPelBuf(m_filteredBlock[0][0][0], oriStride, pu.lumaSize()),
     //                   CPelBuf(m_filteredBlock[0][0][1], oriStride, pu.lumaSize()), clpRng);
@@ -6807,22 +6828,22 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
     Aver_prePxl.bufs[0].addWeightedAvg_bi(a, b, clpRng,2);
     // get new Mv CST
     m_cDistParam.cur.buf = Aver_prePxl.bufs[0].buf; 
-    //   printf("\nsecond  Pre: \n");
-    //  for (int j = 0; j < 16; j++)
-    //   {
-    //    for (int i = 0; i < 16; i++)
-    //    {
-    //       printf("%03d ", *(m_filteredBlock[0][0][0] + j * preStride + i));
-    //    }
-    //     printf("\n");
-    //   }
+      // printf("\nsecond  Pre: \n");
+      //for (int j = 0; j < 16; j++)
+      // {
+      //  for (int i = 0; i < 16; i++)
+      //  {
+      //     printf("%03d ",*(Aver_prePxl.bufs[0].buf + j * Aver_prePxl.bufs[0].stride + i));
+      //  }
+      //   printf("\n");
+      // }
     m_pcRdCost->setDistParam(m_cDistParam, oriPxl, Aver_prePxl.bufs[0].buf, Aver_prePxl.bufs[0].stride, m_lumaClpRng.bd,
                              COMPONENT_Y, 0, 1, true);
     Distortion uiCostTemp = m_cDistParam.distFunc(m_cDistParam);
-    // printf("\nSecond :   CST_D : %06d \n", (int) uiCostTemp);
+     //printf("\nSecond :   CST_D : %06d \n", (int) uiCostTemp);
     m_pcRdCost->setCostScale(0);
-    uiDist += m_pcRdCost->getCostOfVectorWithBiPre(L0_MvTemp, L1_MvTemp, L0_MVP, L0_MVP, 0);
-    // printf("\nSecond :   CST_RD : %06d \n", (int) uiCostTemp);
+    uiCostTemp += m_pcRdCost->getCostOfVectorWithBiPre(L0_MvTemp, L1_MvTemp, L0_MVP, L1_MVP, 2);
+     //printf("\nSecond :   CST_RD : %06d \n", (int) uiCostTemp);
     // xGetPre_fme(MvTemp, cStruct, Pre); // !!!
     // store best cost and mv
     if (uiCostTemp < uiCostBest)
@@ -6833,12 +6854,13 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
       {
         break;
       }*/
-      /*L0_finalMv = L0_MvTemp;
-      L1_finalMv = L1_MvTemp;*/
-      L0_finalMv = L0_InitMv;
-      L1_finalMv = L0_InitMv;
-       printf("L0_Initial : (%03d,%03d)  FNL   (%03d,%03d)  MVP  (%03d,%03d) \n",L0_InitMv.hor, L0_InitMv.ver, L0_MvTemp.hor, L0_MvTemp.ver, L0_MVP.hor, L0_MVP.ver);
-       printf("L1_Initial : (%03d,%03d)  FNL   (%03d,%03d)  MVP  (%03d,%03d) \n",L1_InitMv.hor, L1_InitMv.ver, L1_MvTemp.hor, L1_MvTemp.ver, L1_MVP.hor, L1_MVP.ver);
+      L0_finalMv = L0_MvTemp;
+      L1_finalMv = L1_MvTemp;
+      //L0_finalMv = L0_InitMv;
+      //L1_finalMv = L0_InitMv;
+
+       //printf("L0_Initial : (%03d,%03d)  FNL   (%03d,%03d)  MVP  (%03d,%03d) \n",L0_InitMv.hor, L0_InitMv.ver, L0_MvTemp.hor, L0_MvTemp.ver, L0_MVP.hor, L0_MVP.ver);
+       //printf("L1_Initial : (%03d,%03d)  FNL   (%03d,%03d)  MVP  (%03d,%03d) \n",L1_InitMv.hor, L1_InitMv.ver, L1_MvTemp.hor, L1_MvTemp.ver, L1_MVP.hor, L1_MVP.ver);
     }
   }
 }
