@@ -77,38 +77,38 @@ LIST_SEQ_AVAILABLE=(
 )
 LIST_SEQ=(
     # # A1
-    # "FoodMarket4"           8     60      3840    2160    10
-    # "Tango2"                8     60      3840    2160    10
-    # "Campfire"              8     30      3840    2160    10
-    # # A2
-    # "ParkRunning3"          8     50      3840    2160    10
-    # "CatRobot"              8     60      3840    2160    10
-    # "DaylightRoad2"         8     60      3840    2160    10
-    # # B
-    # "MarketPlace"           100     60      1920    1080    10
-    # "BasketballDrive"       100     50      1920    1080    8
-    # "BQTerrace"             100     60      1920    1080    8
-    # "Cactus"                100     50      1920    1080    8
-    # "RitualDance"           100     60      1920    1080    10
-    # # C
-    # "BasketballDrill"       100     50      832     480     8
-    # "BQMall"                100     60      832     480     8
-    # "PartyScene"            100     50      832     480     8
-    # "RaceHorsesC"           100     30      832     480     8
+    "FoodMarket4"           32     60      3840    2160    10
+    "Tango2"                32     60      3840    2160    10
+    "Campfire"              32     30      3840    2160    10
+    # A2
+    "ParkRunning3"          32     50      3840    2160    10
+    "CatRobot"              32     60      3840    2160    10
+    "DaylightRoad2"         32     60      3840    2160    10
+    # B
+    "MarketPlace"           32      60      1920    1080    10
+    "BasketballDrive"       32      50      1920    1080    8
+    "BQTerrace"             32      60      1920    1080    8
+    "Cactus"                32      50      1920    1080    8
+    "RitualDance"           32      60      1920    1080    10
+    # C
+    "BasketballDrill"       32      50      832     480     8
+    "BQMall"                32      60      832     480     8
+    "PartyScene"            32      50      832     480     8
+    "RaceHorsesC"           32      30      832     480     8
     # D
-    "BasketballPass"        4    50      416     240     8
-    # "BlowingBubbles"        100    50      416     240     8
-    # "BQSquare"              100    60      416     240     8
-    # "RaceHorses"            100    30      416     240     8
-    # # E
-    # "FourPeople"            100    60      1280    720     8
-    # "Johnny"                100    60      1280    720     8
-    # "KristenAndSara"        100    60      1280    720     8
+    "BasketballPass"        32     50      416     240     8
+    "BlowingBubbles"        32     50      416     240     8
+    "BQSquare"              32     60      416     240     8
+    "RaceHorses"            32     30      416     240     8
+    # E
+    # "FourPeople"            32     60      1280    720     8
+    # "Johnny"                32     60      1280    720     8
+    # "KristenAndSara"        32     60      1280    720     8
     # screen content
-    # "ArenaOfValor"          100    60      1920    1080    8
-    # "SlideEditing"          100    30      1280    720     8
-    # "SlideShow"             100    20      1280    720     8
-    # "BasketballDrillText"   100    50      832     480     8
+    "ArenaOfValor"          32     60      1920    1080    8
+    "SlideEditing"          32     30      1280    720     8
+    "SlideShow"             32     20      1280    720     8
+    "BasketballDrillText"   32     50      832     480     8
 )
 
 # encoder
@@ -179,7 +179,7 @@ do
         # encode (gop, common)
         ./${CSTR_CDC}                                                 \
                                                                       \
-            -c                  cfg/encoder_lowdelay_P_vtm.cfg        \
+            -c                  cfg/encoder_randomaccess_vtm.cfg      \
                                                                       \
                     --InputFile=${CSTR_SRC}/${CSTR_SRC_YUV}           \
             --FramesToBeEncoded=${NUMB_FRA}                           \
@@ -189,7 +189,7 @@ do
                 --InputBitDepth=${DATA_PXL_WD}                        \
                     --FrameRate=${DATA_FPS}                           \
                            --QP=${DATA_Q_P}                           \
-                  --IntraPeriod=$((DATA_PRD_INTRA + 1))               \
+                  --IntraPeriod=$((DATA_PRD_INTRA    ))               \
                 --BitstreamFile=${CSTR_DIR_DST_FUL}${CSTR_CDC}.bin    \
                                                                       \
         >& ${CSTR_DIR_DST_FUL}${CSTR_CDC}.log &
