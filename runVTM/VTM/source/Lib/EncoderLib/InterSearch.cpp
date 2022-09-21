@@ -6545,7 +6545,7 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
   PelUnitBuf Aver_prePxl = m_tmpAffiStorage.getBuf( UnitAreaRelative(*pu.cu, pu) );
   int        width     = L0_cPatternRoi->width;
   int        height    = L0_cPatternRoi->height;
-  int        preStride = L0_prePxl.stride;
+  //int        preStride = L0_prePxl.stride;
   // get L0_and L1_CST
   L0_InitMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
   L1_InitMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
@@ -6655,8 +6655,8 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
   int iIterTime = 2;
   // for loop : use gradient to update mv
   // get Error Matrix
-  const int bufStride     = oriStride;
-  const int predBufStride = preStride;
+  //const int bufStride     = oriStride;
+  //const int predBufStride = preStride;
   int *     L0_pdDerivate[2];
   int *     L1_pdDerivate[2];
   L0_pdDerivate[0] = m_L0_Grad[0];
