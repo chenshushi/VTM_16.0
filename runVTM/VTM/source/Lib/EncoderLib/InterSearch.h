@@ -413,7 +413,9 @@ protected:
   Distortion xGetInterPredictionError( PredictionUnit& pu, PelUnitBuf& origBuf, const RefPicList &eRefPicList = REF_PIC_LIST_X );
   void       xEqualCoeffComputer_fme(Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride,
                                      int64_t (*pEqualCoeff)[7], int width, int height);
-  void       xGetPre_fme(Mv MvIntial, IntTZSearchStruct &cStruct, Pel *Pre);
+  void       xGetPre_fme(Mv MvIntial, IntTZSearchStruct &cStruct);
+  void xOpticalFlow(const PredictionUnit &pu, CPelBuf *pattern, IntTZSearchStruct &cStruct, Mv &rcMvIni, Mv &rcMvQter,
+                    bool bi);
 
 public:
   /// encoder estimation - inter prediction (non-skip)
@@ -538,7 +540,8 @@ protected:
   );
 
   void xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx, IntTZSearchStruct &cStruct,
-                             const Mv &rcMvInt, Mv &rcMvHalf, Mv &rcMvQter, Distortion &ruiCost
+                             Mv &best_P_InitMv, const Mv &rcMvInt,  Mv &rcMvHalf, Mv &rcMvQter, Distortion &ruiCost,
+                             bool bBi
 #if GDR_ENABLED
                              ,
                              bool &rbCleanCandExist
