@@ -6225,7 +6225,7 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, CPelBuf *cPatternRoi, I
 /*     m_pcRdCost->setCostScale(0);
     uiDist += m_pcRdCost->getCostOfVectorWithPredictor(iniMvInt.hor, iniMvInt.ver, 0); */
     // set iter times
-    int iIterTime = 0;
+    int iIterTime = 1;
     // for loop : use gradient to update mv
     // get Error Matrix
     const int bufStride     = oriStride;
