@@ -6139,6 +6139,47 @@ void InterSearch::xEqualCoeffComputer_fme(Pel* pResidue, int residueStride, int*
         }
     }
 }
+
+void InterSearch::xEqualCoeffComputer_fme_new(Pel* pResidue, int residueStride, int** ppDerivate, int derivateBufStride, int64_t(*pEqualCoeff)[7],int posX, int posY,int width, int height)
+{
+    int affineParamNum =2;
+
+  for (int j = posX; j != (posX + height); j++)
+  {
+      /*int cy = ((j >> 2) << 2) + 2;*/
+      for (int k = posY; k !=(posY + width); k++)
+      {
+          //bool flg_skip_y = ((j%8 == 0) || (j%8 == 7)) ? true : false;
+          //bool flg_skip_x = ((k%8 == 0) || (k%8 == 7)) ? true : false;
+          //if (height > 6 && flg_skip_y) {
+          //  continue;
+          //}
+          //if (width > 6 && flg_skip_x) {
+          //  continue;
+          //}
+            int iC[2];
+
+            int idx = j * derivateBufStride + k;
+            /*int cx = ((k >> 2) << 2) + 2;*/
+
+            iC[0] = ppDerivate[0][idx];
+            iC[1] = ppDerivate[1][idx];
+            //double laplace_numerator    = sqrt((j - height / 2) * (j - height / 2) + (k - width / 2) * (k - width / 2));
+            //double laplace_denominator  = sqrt(height * width);
+            //double laplace_weight       = exp(-laplace_numerator / laplace_denominator);
+            for (int col = 0; col < affineParamNum; col++)
+            {
+                for (int row = 0; row < affineParamNum; row++)
+                {
+                    //pEqualCoeff[col + 1][row] += (int64_t)iC[col] * iC[row]* int(laplace_weight * 100);
+                    pEqualCoeff[col + 1][row] += (int64_t)iC[col] * iC[row];
+                }
+                //pEqualCoeff[col + 1][affineParamNum] += ((int64_t)iC[col] * pResidue[idx]* int(laplace_weight * 100)) << 3;
+                pEqualCoeff[col + 1][affineParamNum] += ((int64_t)iC[col] * pResidue[idx]) << 3;
+            }
+      }
+    }
+}
 void InterSearch::xGetPre_fme(Mv MvIntial, IntTZSearchStruct &cStruct)
 {
   //  Reference pattern initialization (integer scale)
@@ -6281,7 +6322,74 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, CPelBuf *cPatternRoi, I
       ////  0  0  0
       ////  1  2  1
       m_VerticalSobelFilter(pPred, predBufStride, pdDerivate[1], width, width, height);
-      //
+      //////////////////////////////////////////
+      Mv optical_Mv;
+      Mv      MV_tmp[128*128];
+      optical_Mv.hor = 0;
+      optical_Mv.ver = 0;
+      int stpX = 4;
+      int stpY = 4;
+      int num_MV = 0;
+      for (int posX = 0; posX<width; posX += stpX) {
+        for (int posY = 0; posY<height; posY += stpY) {
+               for (int row = 0; row < iParaNum; row++)
+                  memset(&i64EqualCoeff[row][0], 0, iParaNum * sizeof(int64_t));
+
+          xEqualCoeffComputer_fme_new(piError, width, pdDerivate, width, i64EqualCoeff, posX, posY,stpX, stpY);
+          for (int row = 0; row < iParaNum; row++)
+                for (int i = 0; i < iParaNum; i++)
+                    pdEqualCoeff[row][i] = (double)i64EqualCoeff[row][i];
+            double dAffinePara[6];
+            double dDeltaMv[6];
+            Mv acDeltaMv[3];
+            solveEqual(pdEqualCoeff, 2, dAffinePara); // !!! the affineParaNum should be 2
+            dDeltaMv[0] = dAffinePara[0];
+            dDeltaMv[1] = dAffinePara[1];
+            for (int i = 0; i < 6; i++)
+            {
+                if (dDeltaMv[i] < -8192.0)
+                       dDeltaMv[i] = -8192.0;
+                if (dDeltaMv[i] > 8192.0)
+                       dDeltaMv[i] = 8192.0;
+            }
+            acDeltaMv[0].hor = (int16_t) (dDeltaMv[0] * 4 + SIGN(dDeltaMv[0]) * 0.5) * (1 << 2);
+            acDeltaMv[0].ver = (int16_t) (dDeltaMv[1] * 4 + SIGN(dDeltaMv[1]) * 0.5) * (1 << 2);
+            // do motion compensation with updated mv
+            // MV 
+            Mv TMP = acDeltaMv[0];
+            {
+                if (TMP.hor < -64)
+                       TMP.hor = -64;
+                if (TMP.hor > 64)
+                       TMP.hor = 64;
+                if (TMP.ver < -64)
+                       TMP.ver = -64;
+                if (TMP.ver > 64)
+                       TMP.ver = 64;
+            }
+            MV_tmp[posX + width*posY] = TMP;
+            // printf("(%03d,%03d)   ", TMP.ver, TMP.hor);
+            //if ((TMP.ver != 64) || (TMP.ver != -64) || (TMP.hor != 64) || (TMP.hor != -64)) {
+            //  optical_Mv.ver += TMP.ver;
+            //  optical_Mv.hor += TMP.hor;
+            //  num_MV++;
+            //}
+            //else {
+            //  optical_Mv.ver += 0;
+            //  optical_Mv.hor += 0;
+            //}
+
+              optical_Mv.ver += TMP.ver;
+              optical_Mv.hor += TMP.hor;
+              num_MV++;
+          
+        }
+        printf(" \n");
+      }
+      optical_Mv.ver = optical_Mv.ver/num_MV;
+    optical_Mv.hor = optical_Mv.hor/num_MV;
+      // printf("\n Dlt_MV : (%03d,%03d)\n", optical_Mv.ver, optical_Mv.hor);
+      //////////////////////////////////////////
       ////// solve delta x and y
       for (int row = 0; row < iParaNum; row++)
       {

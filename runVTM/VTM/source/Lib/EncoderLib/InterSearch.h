@@ -413,6 +413,7 @@ protected:
   Distortion xGetInterPredictionError( PredictionUnit& pu, PelUnitBuf& origBuf, const RefPicList &eRefPicList = REF_PIC_LIST_X );
   void       xEqualCoeffComputer_fme(Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride,
                                      int64_t (*pEqualCoeff)[7], int width, int height);
+  void xEqualCoeffComputer_fme_new(Pel* pResidue, int residueStride, int** ppDerivate, int derivateBufStride, int64_t(*pEqualCoeff)[7],int posX, int posY,int width, int height);
   void       xGetPre_fme(Mv MvIntial, IntTZSearchStruct &cStruct);
   void xOpticalFlow(const PredictionUnit &pu, CPelBuf *pattern, IntTZSearchStruct &cStruct, Mv &rcMvIni, Mv &rcMvQter,
                     bool bi);
