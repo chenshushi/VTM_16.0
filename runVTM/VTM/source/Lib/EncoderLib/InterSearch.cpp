@@ -8243,6 +8243,38 @@ void InterSearch::xCheckBestAffineMVP( PredictionUnit &pu, AffineAMVPInfo &affin
   }
 }
 
+Pel GetMedianNum(Pel *pixel)
+{
+	int i,j;
+	Pel bTemp;
+	for (j = 0; j < 9 - 1; j ++)
+	{
+		for (i = 0; i < 9 - j - 1; i ++)
+		{
+			if (pixel[i] > pixel[i + 1])
+			{
+				bTemp = pixel[i];
+				pixel[i] = pixel[i + 1];
+				pixel[i + 1] = bTemp;
+			}
+		}
+	}
+	
+
+	if ((9 & 1) > 0)
+	{
+
+		bTemp = pixel[(9 + 1) / 2];
+	}
+	else
+	{
+
+		bTemp = (pixel[9 / 2] + pixel[9 / 2 + 1]) / 2;
+	}
+
+	return bTemp;
+}
+
 #if GDR_ENABLED
 void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList,
                                           Mv acMvPred[3], int refIdxPred, Mv acMv[3], bool acMvSolid[3],
@@ -8436,16 +8468,89 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
     // get Error Matrix
     Pel* pOrg  = pBuf->Y().buf;
     Pel* pPred = predBuf.Y().buf;
+    int aver = 0;
     for ( int j=0; j< height; j++ )
     {
       for ( int i=0; i< width; i++ )
       {
         piError[i + j * width] = pOrg[i] - pPred[i];
+         aver +=  piError[i + j * width];
       }
       pOrg  += bufStride;
       pPred += predBufStride;
     }
+    aver = aver/(height*width);
 
+    // printf("affine MV (%05d,%05d)  (%05d,%05d)  (%05d,%05d)\n",acMvTemp[0].hor,acMvTemp[0].ver,acMvTemp[1].hor,acMvTemp[1].ver,acMvTemp[2].hor,acMvTemp[2].ver);
+    bool filter_flag = false;
+    if( pu.cu->affineType == AFFINEMODEL_6PARAM )
+    {
+      if (   (abs(acMvTemp[0].hor) > 4 )
+          || (abs(acMvTemp[0].ver) > 4 )
+          || (abs(acMvTemp[1].hor) > 4 )
+          || (abs(acMvTemp[1].ver) > 4 )
+          || (abs(acMvTemp[2].hor) > 4 )
+          || (abs(acMvTemp[2].ver) > 4 )
+      )
+      filter_flag = true;
+    }
+    else {
+      if (   (abs(acMvTemp[0].hor) > 4 )
+          || (abs(acMvTemp[0].ver) > 4 )
+          || (abs(acMvTemp[1].hor) > 4 )
+          || (abs(acMvTemp[1].ver) > 4 )
+      )
+      filter_flag = true;
+    }
+    // printf("average %05d filter_flag %05d\n",aver,filter_flag);
+    if (filter_flag || (abs(aver) >4)) {
+      // filtering
+      // int average = 0;
+      // for ( int j=0; j< height; j++ )
+      // {
+      //   for ( int i=0; i< width; i++ )
+      //   {
+      //     average +=  piError[i + j * width];
+      //   }
+      // }
+      // average = average/(height*width);
+
+      int average = aver;
+      int  sigma = 0;
+      int  sum = 0;
+      for ( int j=0; j< height; j++ )
+      {
+        for ( int i=0; i< width; i++ )
+        {
+          sum += (piError[i + j * width] - average)*(piError[i + j * width] - average);
+        }
+      }
+      sigma =int(sqrt(sum/(height*width)));
+      int error_max = average + 3*sigma;
+      int error_min = average - 3*sigma;
+
+      pPred = predBuf.Y().buf;
+      Pel pixel[9] = {0};
+      for ( int j=1; j< height-1; j++ )
+      {
+        for ( int i=1; i< width-1; i++ )
+        {
+          int idx = j * predBufStride + i;
+          if ((piError[i + j * width] > error_max) || (piError[i + j * width] < error_min)) {
+            pixel[0] = pPred[idx - predBufStride - 1 ];
+            pixel[1] = pPred[idx - predBufStride - 0 ];
+            pixel[2] = pPred[idx - predBufStride + 1 ];
+            pixel[3] = pPred[idx                 - 1 ];
+            pixel[4] = pPred[idx                 - 0 ];
+            pixel[5] = pPred[idx                 + 1 ];
+            pixel[6] = pPred[idx + predBufStride - 1 ];
+            pixel[7] = pPred[idx + predBufStride - 0 ];
+            pixel[8] = pPred[idx + predBufStride + 1 ];
+            pPred[idx] = GetMedianNum(pixel);
+          }
+        }
+      }
+  }
     // sobel x direction
     // -1 0 1
     // -2 0 2
@@ -8465,7 +8570,7 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
       memset( &i64EqualCoeff[row][0], 0, iParaNum * sizeof( int64_t ) );
     }
 
-    m_EqualCoeffComputer( piError, width, pdDerivate, width, i64EqualCoeff, width, height
+    xEqualCoeffComputer( piError, width, pdDerivate, width, i64EqualCoeff, width, height
       , (pu.cu->affineType == AFFINEMODEL_6PARAM)
     );
 
