@@ -8427,6 +8427,7 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
   {
     iIterTime = bBi ? 5 : 7;
   }
+  iIterTime = 1;
   for ( int iter=0; iter<iIterTime; iter++ )    // iterate loop
   {
     memcpy( prevIterMv[iter], acMvTemp, sizeof( Mv ) * 3 );
