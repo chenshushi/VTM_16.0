@@ -1,7 +1,9 @@
 # VTM_16.0
 
 # Affine Motion Estimation
-# 迭代次数设置为1：LP_100f下 Bdrate为 + 0.193
+# LP_100f ： 
+#               1. 迭代次数设置为1
+# Bdrate为 : 0.193
 
 average                                                   I frame                                                   P frame                                                   B frame
 bdrate(Y)    bdrate(U)    bdrate(V)    bdrate(average)    bdrate(Y)    bdrate(U)    bdrate(V)    bdrate(average)    bdrate(Y)    bdrate(U)    bdrate(V)    bdrate(average)    bdrate(Y)    bdrate(U)    bdrate(V)    bdrate(average)    sequence
@@ -32,3 +34,34 @@ AVE(Y)       AVE(U)       AVE(V)       AVE(average)       AVE(Y)       AVE(U)   
 0.199        0.112        0.236        0.193              0.000        0.000        0.000        0.000              0.242        0.137        0.274        0.234              0.000        0.000        0.000        0.000
 max(Y)       max(U)       max(V)       max(average)       max(Y)       max(U)       max(V)       max(average)       max(Y)       max(U)       max(V)       max(average)       max(Y)       max(U)       max(V)       max(average)
 1.111        1.548        1.871        1.142              0.000        0.000        0.000        0.000              1.473        1.956        2.089        1.507              0.000        0.000        0.000        0.000
+
+# LP_8f ：
+#           1. 迭代次数设置为1
+#           2. 直接采用FMV作为平移FMV
+#
+# Bdrate: + 0.300
+
+average                                                   I frame                                                   P frame                                                   B frame
+bdrate(Y)    bdrate(U)    bdrate(V)    bdrate(average)    bdrate(Y)    bdrate(U)    bdrate(V)    bdrate(average)    bdrate(Y)    bdrate(U)    bdrate(V)    bdrate(average)    bdrate(Y)    bdrate(U)    bdrate(V)    bdrate(average)    sequence
+0.320        -0.208       0.065        0.190              0.000        0.000        0.000        0.000              0.280        -0.491       -0.094       0.089              0.000        0.000        0.000        0.000              BasketballDrill
+0.186        -0.335       -0.210       0.033              0.000        0.000        0.000        0.000              -0.420       -1.315       -0.802       -0.633             0.000        0.000        0.000        0.000              BQMall
+-0.008       0.210        0.334        0.085              0.000        0.000        0.000        0.000              -0.392       0.017        0.257        -0.216             0.000        0.000        0.000        0.000              PartyScene
+0.553        0.258        0.381        0.475              0.000        0.000        0.000        0.000              1.157        0.728        0.840        1.033              0.000        0.000        0.000        0.000              RaceHorsesC
+0.917        0.694        1.635        0.999              0.000        0.000        0.000        0.000              2.371        2.110        3.571        2.527              0.000        0.000        0.000        0.000              BasketballPass
+0.814        -0.211       0.136        0.531              0.000        0.000        0.000        0.000              1.725        0.063        0.541        1.250              0.000        0.000        0.000        0.000              BlowingBubbles
+0.425        0.003        0.176        0.313              0.000        0.000        0.000        0.000              1.044        0.006        0.389        0.762              0.000        0.000        0.000        0.000              BQSquare
+0.401        -1.568       -0.025       0.002              0.000        0.000        0.000        0.000              0.705        -2.115       0.131        0.139              0.000        0.000        0.000        0.000              RaceHorses
+0.088        -0.193       -0.328       -0.028             0.000        0.000        0.000        0.000              0.479        -0.133       -0.375       0.234              0.000        0.000        0.000        0.000              FourPeople
+0.645        0.218        0.334        0.522              0.000        0.000        0.000        0.000              -0.509       -1.039       -0.964       -0.673             0.000        0.000        0.000        0.000              Johnny
+0.700        -0.069       -0.156       0.429              0.000        0.000        0.000        0.000              1.577        0.215        0.148        1.112              0.000        0.000        0.000        0.000              KristenAndSara
+0.719        0.180        0.155        0.535              0.000        0.000        0.000        0.000              1.425        0.582        0.611        1.149              0.000        0.000        0.000        0.000              ArenaOfValor
+0.089        0.113        0.167        0.106              0.000        0.000        0.000        0.000              1.923        1.905        1.995        1.932              0.000        0.000        0.000        0.000              SlideEditing
+0.058        -0.080       0.235        0.064              0.000        0.000        0.000        0.000              0.607        0.358        0.682        0.578              0.000        0.000        0.000        0.000              SlideShow
+0.430        -0.486       0.255        0.248              0.000        0.000        0.000        0.000              1.497        0.230        1.263        1.247              0.000        0.000        0.000        0.000              BasketballDrillText
+
+min(Y)       min(U)       min(V)       min(average)       min(Y)       min(U)       min(V)       min(average)       min(Y)       min(U)       min(V)       min(average)       min(Y)       min(U)       min(V)       min(average)
+-0.008       -1.568       -0.328       -0.028             0.000        0.000        0.000        0.000              -0.509       -2.115       -0.964       -0.673             0.000        0.000        0.000        0.000
+AVE(Y)       AVE(U)       AVE(V)       AVE(average)       AVE(Y)       AVE(U)       AVE(V)       AVE(average)       AVE(Y)       AVE(U)       AVE(V)       AVE(average)       AVE(Y)       AVE(U)       AVE(V)       AVE(average)
+0.422        -0.098       0.210        0.300              0.000        0.000        0.000        0.000              0.898        0.075        0.546        0.702              0.000        0.000        0.000        0.000
+max(Y)       max(U)       max(V)       max(average)       max(Y)       max(U)       max(V)       max(average)       max(Y)       max(U)       max(V)       max(average)       max(Y)       max(U)       max(V)       max(average)
+0.917        0.694        1.635        0.999              0.000        0.000        0.000        0.000              2.371        2.110        3.571        2.527              0.000        0.000        0.000        0.000
