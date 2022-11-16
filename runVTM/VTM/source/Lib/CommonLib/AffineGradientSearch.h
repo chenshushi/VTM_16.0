@@ -40,7 +40,7 @@
 #define __AFFINEGRADIENTSEARCH__
 
 #include "CommonDef.h"
-
+#include "Mv.h"
 //! \ingroup CommonLib
 //! \{
 
@@ -58,7 +58,11 @@ public:
   static void xVerticalSobelFilter( Pel *const pPred, const int predStride, int *const pDerivate, const int derivateBufStride, const int width, const int height );
 
   static void xEqualCoeffComputer( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], int width, int height, bool b6Param );
-
+  static void xEqualCoeffComputer_four_ab( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], Mv MV_0, int width, int height, bool b6Param );
+  static void xEqualCoeffComputer_four_cf( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], Mv MV_0,  Mv MV_1, int width, int height, bool b6Param );
+  static void xEqualCoeffComputer_six_ab( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], Mv MV_0,Mv MV_1, Mv MV_2, int width, int height, bool b6Param );
+  static void xEqualCoeffComputer_six_df( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], Mv MV_0,Mv MV_1, Mv MV_2, int width, int height, bool b6Param );
+  static void xEqualCoeffComputer_six_ce( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], Mv MV_0,Mv MV_1, Mv MV_2, int width, int height, bool b6Param );
   AffineGradientSearch();
   ~AffineGradientSearch() {}
 

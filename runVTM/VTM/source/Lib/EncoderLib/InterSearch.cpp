@@ -8465,61 +8465,192 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
     {
       memset( &i64EqualCoeff[row][0], 0, iParaNum * sizeof( int64_t ) );
     }
-
-    m_EqualCoeffComputer( piError, width, pdDerivate, width, i64EqualCoeff, width, height
-      , (pu.cu->affineType == AFFINEMODEL_6PARAM)
-    );
-
-    for ( int row = 0; row < iParaNum; row++ )
-    {
-      for ( int i = 0; i < iParaNum; i++ )
-      {
-        pdEqualCoeff[row][i] = (double)i64EqualCoeff[row][i];
-      }
-    }
-
-    double dAffinePara[6];
-    double dDeltaMv[6]={0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
     Mv acDeltaMv[3];
+    if (affineParaNum == 4){
 
-    solveEqual( pdEqualCoeff, affineParaNum, dAffinePara );
+      xEqualCoeffComputer_four_cf( piError, width, pdDerivate, width, i64EqualCoeff, acMvTemp[0], acMvTemp[1], width, height
+        , (pu.cu->affineType == AFFINEMODEL_6PARAM)
+      );
 
-    // convert to delta mv
-    dDeltaMv[0] = dAffinePara[0];
-    dDeltaMv[2] = dAffinePara[2];
-    if ( pu.cu->affineType == AFFINEMODEL_6PARAM )
-    {
-      dDeltaMv[1] = dAffinePara[1] * width + dAffinePara[0];
-      dDeltaMv[3] = dAffinePara[3] * width + dAffinePara[2];
-      dDeltaMv[4] = dAffinePara[4] * height + dAffinePara[0];
-      dDeltaMv[5] = dAffinePara[5] * height + dAffinePara[2];
+      for ( int row = 0; row < iParaNum; row++ )
+      {
+        for ( int i = 0; i < iParaNum; i++ )
+        {
+          pdEqualCoeff[row][i] = (double)i64EqualCoeff[row][i];
+        }
+      }
+      double dAffinePara[6];
+      double dDeltaMv[6]={0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
+
+      solveEqual( pdEqualCoeff, 2, dAffinePara );
+      // convert to delta mv
+      dDeltaMv[0] = dAffinePara[0];
+      dDeltaMv[1] = dAffinePara[1];
+
+      xEqualCoeffComputer_four_ab( piError, width, pdDerivate, width, i64EqualCoeff, acMvTemp[0], width, height
+        , (pu.cu->affineType == AFFINEMODEL_6PARAM)
+      );
+      for ( int row = 0; row < iParaNum; row++ )
+      {
+        for ( int i = 0; i < iParaNum; i++ )
+        {
+          pdEqualCoeff[row][i] = (double)i64EqualCoeff[row][i];
+        }
+      }
+
+
+
+      solveEqual( pdEqualCoeff, 2, dAffinePara );
+
+      // convert to delta mv
+      dDeltaMv[2] =  dAffinePara[0] * width + dDeltaMv[0];
+      dDeltaMv[3] = -dAffinePara[1] * width + dDeltaMv[1];
+
+      for (int i = 0; i < 6; i++)
+      {
+        dDeltaMv[i] = Clip3(-8192.0, 8192.0, dDeltaMv[i]);
+      }
+
+      const int normShiftTab[3] = { MV_PRECISION_QUARTER - MV_PRECISION_INT, MV_PRECISION_SIXTEENTH - MV_PRECISION_INT, MV_PRECISION_QUARTER - MV_PRECISION_INT };
+      const int stepShiftTab[3] = { MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL - MV_PRECISION_SIXTEENTH, MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER };
+      const int multiShift = 1 << normShiftTab[pu.cu->imv];
+      const int mvShift = stepShiftTab[pu.cu->imv];
+      acDeltaMv[0] = Mv((int) (dDeltaMv[0] * multiShift + SIGN(dDeltaMv[0]) * 0.5) * (1 << mvShift),
+                        (int) (dDeltaMv[1] * multiShift + SIGN(dDeltaMv[1]) * 0.5) * (1 << mvShift));
+      acDeltaMv[1] = Mv((int) (dDeltaMv[2] * multiShift + SIGN(dDeltaMv[2]) * 0.5) * (1 << mvShift),
+                        (int) (dDeltaMv[3] * multiShift + SIGN(dDeltaMv[3]) * 0.5) * (1 << mvShift));
     }
-    else
-    {
-      dDeltaMv[1] = dAffinePara[1] * width + dAffinePara[0];
-      dDeltaMv[3] = -dAffinePara[3] * width + dAffinePara[2];
-    }
+    else {
+      xEqualCoeffComputer_six_ab( piError, width, pdDerivate, width, i64EqualCoeff, acMvTemp[0],acMvTemp[1], acMvTemp[2], width, height
+              , (pu.cu->affineType == AFFINEMODEL_6PARAM)
+            );
 
-    for (int i = 0; i < 6; i++)
-    {
-      dDeltaMv[i] = Clip3(-8192.0, 8192.0, dDeltaMv[i]);
-    }
+        for ( int row = 0; row < iParaNum; row++ )
+        {
+          for ( int i = 0; i < iParaNum; i++ )
+          {
+            pdEqualCoeff[row][i] = (double)i64EqualCoeff[row][i];
+          }
+        }
+      double dAffinePara[6];
+      double dDeltaMv[6]={0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
 
-    const int normShiftTab[3] = { MV_PRECISION_QUARTER - MV_PRECISION_INT, MV_PRECISION_SIXTEENTH - MV_PRECISION_INT, MV_PRECISION_QUARTER - MV_PRECISION_INT };
-    const int stepShiftTab[3] = { MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL - MV_PRECISION_SIXTEENTH, MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER };
-    const int multiShift = 1 << normShiftTab[pu.cu->imv];
-    const int mvShift = stepShiftTab[pu.cu->imv];
+      solveEqual( pdEqualCoeff, 2, dAffinePara );
 
-    acDeltaMv[0] = Mv((int) (dDeltaMv[0] * multiShift + SIGN(dDeltaMv[0]) * 0.5) * (1 << mvShift),
-                      (int) (dDeltaMv[2] * multiShift + SIGN(dDeltaMv[2]) * 0.5) * (1 << mvShift));
-    acDeltaMv[1] = Mv((int) (dDeltaMv[1] * multiShift + SIGN(dDeltaMv[1]) * 0.5) * (1 << mvShift),
-                      (int) (dDeltaMv[3] * multiShift + SIGN(dDeltaMv[3]) * 0.5) * (1 << mvShift));
+      // convert to delta mv0
+      dDeltaMv[0] = dAffinePara[0];
+      dDeltaMv[1] = dAffinePara[1];
 
-    if ( pu.cu->affineType == AFFINEMODEL_6PARAM )
-    {
-      acDeltaMv[2] = Mv((int) (dDeltaMv[4] * multiShift + SIGN(dDeltaMv[4]) * 0.5) * (1 << mvShift),
+      xEqualCoeffComputer_six_df( piError, width, pdDerivate, width, i64EqualCoeff, acMvTemp[0],acMvTemp[1], acMvTemp[2], width, height
+              , (pu.cu->affineType == AFFINEMODEL_6PARAM)
+            );
+      for ( int row = 0; row < iParaNum; row++ )
+        {
+          for ( int i = 0; i < iParaNum; i++ )
+          {
+            pdEqualCoeff[row][i] = (double)i64EqualCoeff[row][i];
+          }
+        }
+      dAffinePara[0] = 0.0;
+      dAffinePara[1] = 0.0;
+/*       dDeltaMv[2] =  0.0;
+      dDeltaMv[3] = 0.0; */
+
+      solveEqual( pdEqualCoeff, 2, dAffinePara );
+
+      // convert to delta mv2
+      dDeltaMv[2] = dAffinePara[0] * height + acMvTemp[0].hor;
+      dDeltaMv[3] = dAffinePara[1] * height + acMvTemp[0].ver;
+
+
+      xEqualCoeffComputer_six_ce( piError, width, pdDerivate, width, i64EqualCoeff, acMvTemp[0],acMvTemp[1], acMvTemp[2], width, height
+              , (pu.cu->affineType == AFFINEMODEL_6PARAM)
+            );
+      for ( int row = 0; row < iParaNum; row++ )
+        {
+          for ( int i = 0; i < iParaNum; i++ )
+          {
+            pdEqualCoeff[row][i] = (double)i64EqualCoeff[row][i];
+          }
+        }
+      dAffinePara[0] = 0.0;
+      dAffinePara[1] = 0.0;
+/*       dDeltaMv[0] =  0.0;
+      dDeltaMv[1] = 0.0; */
+
+      solveEqual( pdEqualCoeff, 2, dAffinePara );
+
+      // convert to delta mv1
+      dDeltaMv[4] = dAffinePara[0] * width + acMvTemp[0].hor;
+      dDeltaMv[5] = dAffinePara[1] * width + acMvTemp[0].ver;
+
+      for (int i = 0; i < 6; i++)
+      {
+        dDeltaMv[i] = Clip3(-8192.0, 8192.0, dDeltaMv[i]);
+      }
+
+      const int normShiftTab[3] = { MV_PRECISION_QUARTER - MV_PRECISION_INT, MV_PRECISION_SIXTEENTH - MV_PRECISION_INT, MV_PRECISION_QUARTER - MV_PRECISION_INT };
+      const int stepShiftTab[3] = { MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL - MV_PRECISION_SIXTEENTH, MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER };
+      const int multiShift = 1 << normShiftTab[pu.cu->imv];
+      const int mvShift = stepShiftTab[pu.cu->imv];
+      acDeltaMv[0] = Mv((int) (dDeltaMv[0] * multiShift + SIGN(dDeltaMv[0]) * 0.5) * (1 << mvShift),
+                        (int) (dDeltaMv[1] * multiShift + SIGN(dDeltaMv[1]) * 0.5) * (1 << mvShift));
+      acDeltaMv[1] = Mv((int) (dDeltaMv[4] * multiShift + SIGN(dDeltaMv[4]) * 0.5) * (1 << mvShift),
                         (int) (dDeltaMv[5] * multiShift + SIGN(dDeltaMv[5]) * 0.5) * (1 << mvShift));
+      acDeltaMv[2] = Mv((int) (dDeltaMv[2] * multiShift + SIGN(dDeltaMv[2]) * 0.5) * (1 << mvShift),
+                        (int) (dDeltaMv[3] * multiShift + SIGN(dDeltaMv[3]) * 0.5) * (1 << mvShift));
     }
+
+    // for ( int row = 0; row < iParaNum; row++ )
+    // {
+    //   for ( int i = 0; i < iParaNum; i++ )
+    //   {
+    //     pdEqualCoeff[row][i] = (double)i64EqualCoeff[row][i];
+    //   }
+    // }
+
+    // double dAffinePara[6];
+    // double dDeltaMv[6]={0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
+    // Mv acDeltaMv[3];
+
+    // solveEqual( pdEqualCoeff, affineParaNum, dAffinePara );
+
+    // // convert to delta mv
+    // dDeltaMv[0] = dAffinePara[0];
+    // dDeltaMv[2] = dAffinePara[2];
+    // if ( pu.cu->affineType == AFFINEMODEL_6PARAM )
+    // {
+    //   dDeltaMv[1] = dAffinePara[1] * width + dAffinePara[0];
+    //   dDeltaMv[3] = dAffinePara[3] * width + dAffinePara[2];
+    //   dDeltaMv[4] = dAffinePara[4] * height + dAffinePara[0];
+    //   dDeltaMv[5] = dAffinePara[5] * height + dAffinePara[2];
+    // }
+    // else
+    // {
+    //   dDeltaMv[1] = dAffinePara[1] * width + dAffinePara[0];
+    //   dDeltaMv[3] = -dAffinePara[3] * width + dAffinePara[2];
+    // }
+
+    // for (int i = 0; i < 6; i++)
+    // {
+    //   dDeltaMv[i] = Clip3(-8192.0, 8192.0, dDeltaMv[i]);
+    // }
+
+    // const int normShiftTab[3] = { MV_PRECISION_QUARTER - MV_PRECISION_INT, MV_PRECISION_SIXTEENTH - MV_PRECISION_INT, MV_PRECISION_QUARTER - MV_PRECISION_INT };
+    // const int stepShiftTab[3] = { MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL - MV_PRECISION_SIXTEENTH, MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER };
+    // const int multiShift = 1 << normShiftTab[pu.cu->imv];
+    // const int mvShift = stepShiftTab[pu.cu->imv];
+
+    // acDeltaMv[0] = Mv((int) (dDeltaMv[0] * multiShift + SIGN(dDeltaMv[0]) * 0.5) * (1 << mvShift),
+    //                   (int) (dDeltaMv[2] * multiShift + SIGN(dDeltaMv[2]) * 0.5) * (1 << mvShift));
+    // acDeltaMv[1] = Mv((int) (dDeltaMv[1] * multiShift + SIGN(dDeltaMv[1]) * 0.5) * (1 << mvShift),
+    //                   (int) (dDeltaMv[3] * multiShift + SIGN(dDeltaMv[3]) * 0.5) * (1 << mvShift));
+
+    // if ( pu.cu->affineType == AFFINEMODEL_6PARAM )
+    // {
+    //   acDeltaMv[2] = Mv((int) (dDeltaMv[4] * multiShift + SIGN(dDeltaMv[4]) * 0.5) * (1 << mvShift),
+    //                     (int) (dDeltaMv[5] * multiShift + SIGN(dDeltaMv[5]) * 0.5) * (1 << mvShift));
+    // }
     if ( !m_pcEncCfg->getUseAffineAmvrEncOpt() )
     {
       bool bAllZero = false;
