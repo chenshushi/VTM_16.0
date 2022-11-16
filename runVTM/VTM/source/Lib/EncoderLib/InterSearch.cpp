@@ -8706,7 +8706,7 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
 
     if (allOk)
 #else
-    if (costTemp < uiCostBest)
+    if ((costTemp < uiCostBest) && 0)
 #endif
     {
       uiCostBest = costTemp;
@@ -8724,7 +8724,7 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
 
   const uint32_t mvShiftTable[3] = {MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL - MV_PRECISION_INTERNAL, MV_PRECISION_INTERNAL - MV_PRECISION_INT};
   const uint32_t mvShift = mvShiftTable[pu.cu->imv];
-  if (uiCostBest <= AFFINE_ME_LIST_MVP_TH*m_hevcCost)
+  if ((uiCostBest <= AFFINE_ME_LIST_MVP_TH*m_hevcCost)&& 0)
   {
 
     Mv mvPredTmp[3] = { acMvPred[0], acMvPred[1], acMvPred[2] };
