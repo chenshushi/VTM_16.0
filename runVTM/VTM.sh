@@ -84,31 +84,31 @@ LIST_SEQ=(
     # "ParkRunning3"          32     50      3840    2160    10
     # "CatRobot"              32     60      3840    2160    10
     # "DaylightRoad2"         32     60      3840    2160    10
-    # # B
-    # "MarketPlace"           8    60      1920    1080    10
-    # "BasketballDrive"       8    50      1920    1080    8
-    # "BQTerrace"             8    60      1920    1080    8
-    # "Cactus"                8    50      1920    1080    8
-    # "RitualDance"           8    60      1920    1080    10
-    # # C
-    # "BasketballDrill"       8    50      832     480     8
-    # "BQMall"                8    60      832     480     8
-    # "PartyScene"            8    50      832     480     8
-    # "RaceHorsesC"           8    30      832     480     8
+    # B
+    "MarketPlace"           32    60      1920    1080    10
+    "BasketballDrive"       32    50      1920    1080    8
+    "BQTerrace"             32    60      1920    1080    8
+    "Cactus"                32    50      1920    1080    8
+    "RitualDance"           32    60      1920    1080    10
+    # C
+    "BasketballDrill"       32    50      832     480     8
+    "BQMall"                32    60      832     480     8
+    "PartyScene"            32    50      832     480     8
+    "RaceHorsesC"           32    30      832     480     8
     # # D
-    "BasketballPass"        8    50      416     240     8
-    "BlowingBubbles"        8    50      416     240     8
-    "BQSquare"              8    60      416     240     8
-    "RaceHorses"            8    30      416     240     8
+    "BasketballPass"        32    50      416     240     8
+    "BlowingBubbles"        32    50      416     240     8
+    "BQSquare"              32    60      416     240     8
+    "RaceHorses"            32    30      416     240     8
     # # E
-    "FourPeople"            8    60      1280    720     8
-    "Johnny"                8    60      1280    720     8
-    "KristenAndSara"        8    60      1280    720     8
-    # # screen content
-    # "ArenaOfValor"          8    60      1920    1080    8
-    # "SlideEditing"          8    30      1280    720     8
-    # "SlideShow"             8    20      1280    720     8
-    # "BasketballDrillText"   8    50      832     480     8
+    "FourPeople"            32    60      1280    720     8
+    "Johnny"                32    60      1280    720     8
+    "KristenAndSara"        32    60      1280    720     8
+    # screen content
+    "ArenaOfValor"          32    60      1920    1080    8
+    "SlideEditing"          32    30      1280    720     8
+    "SlideShow"             32    20      1280    720     8
+    "BasketballDrillText"   32    50      832     480     8
 )
 
 # encoder
@@ -183,6 +183,7 @@ do
                                                                       \
                     --InputFile=${CSTR_SRC}/${CSTR_SRC_YUV}           \
             --FramesToBeEncoded=${NUMB_FRA}                           \
+                    --FrameSkip=100                                   \
                   --SourceWidth=${SIZE_FRA_X}                         \
                  --SourceHeight=${SIZE_FRA_Y}                         \
             --InputChromaFormat=420                                   \
