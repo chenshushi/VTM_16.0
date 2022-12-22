@@ -50,7 +50,21 @@
 
 //! \ingroup EncoderLib
 //! \{
-
+int affine_blk_num   = 0;
+int blk_128X128_num  = 0;
+int blk_128X64_num   = 0;
+int blk_64X128_num   = 0;
+int blk_64X64_num    = 0;
+int blk_64X32_num    = 0;
+int blk_32X64_num    = 0;
+int blk_32X32_num    = 0;
+int blk_32X16_num    = 0;
+int blk_16X32_num    = 0;
+int blk_16X16_num    = 0;
+int blk_16X8_num     = 0;
+int blk_8X16_num     = 0;
+int blk_8X8_num      = 0;
+int flg_record       = 0;
 void CABACWriter::initCtxModels( const Slice& slice )
 {
   int       qp                = slice.getSliceQp();
@@ -512,6 +526,7 @@ void CABACWriter::coding_tree(const CodingStructure& cs, Partitioner& partitione
 
 
   // coding unit
+  flg_record = 1;
   coding_unit( cu, partitioner, cuCtx );
 
   if( cu.chType == CHANNEL_TYPE_CHROMA )
@@ -1871,6 +1886,49 @@ void CABACWriter::affine_flag( const CodingUnit& cu )
 
     if ( cu.affine && cu.cs->sps->getUseAffineType() )
     {
+      if (flg_record == 1) {
+        flg_record = 0;
+        affine_blk_num++;
+        if (cu.lumaSize().width == 128 && cu.lumaSize().height == 128){
+          blk_128X128_num += 1;
+        }
+        else if(cu.lumaSize().width == 128 && cu.lumaSize().height == 64){
+          blk_128X64_num += 1;
+        }
+        else if(cu.lumaSize().width == 64 && cu.lumaSize().height == 128){
+          blk_64X128_num += 1;
+        }
+        else if(cu.lumaSize().width == 64 && cu.lumaSize().height == 64){
+          blk_64X64_num += 1;
+        }
+        else if (cu.lumaSize().width == 64 && cu.lumaSize().height == 32){
+          blk_64X32_num += 1;
+        }
+        else if (cu.lumaSize().width == 32 && cu.lumaSize().height == 64){
+          blk_32X64_num += 1;
+        }
+        else if (cu.lumaSize().width == 32 && cu.lumaSize().height == 32){
+          blk_32X32_num += 1;
+        }
+        else if (cu.lumaSize().width == 32 && cu.lumaSize().height == 16){
+          blk_32X16_num += 1;
+        }
+        else if (cu.lumaSize().width == 16 && cu.lumaSize().height == 32){
+          blk_16X32_num += 1;
+        }
+        else if (cu.lumaSize().width == 16 && cu.lumaSize().height == 16){
+          blk_16X16_num += 1;
+        }
+        else if (cu.lumaSize().width == 16 && cu.lumaSize().height == 8){
+          blk_16X8_num += 1;
+        }
+        else if (cu.lumaSize().width == 8 && cu.lumaSize().height == 16){
+          blk_8X16_num += 1;
+        }
+        else if (cu.lumaSize().width == 8 && cu.lumaSize().height == 8){
+          blk_8X8_num += 1;
+        }
+      }
       unsigned ctxId = 0;
       m_BinEncoder.encodeBin( cu.affineType, Ctx::AffineType( ctxId ) );
       DTRACE( g_trace_ctx, D_SYNTAX, "affine_type() affine_type=%d ctx=%d pos=(%d,%d)\n", cu.affineType ? 1 : 0, ctxId, cu.Y().x, cu.Y().y );

@@ -56,7 +56,13 @@
 
  //! \ingroup EncoderLib
  //! \{
-
+int iter_blk_num    = 0;
+int iter_best_num   = 0;
+int iter_zero_num   = 0;
+int iter_one_num    = 0;
+int iter_two_num    = 0;
+int iter_three_num  = 0;
+int iter_four_num   = 0;
 static const Mv s_acMvRefineH[9] =
 {
   Mv(  0,  0 ), // 0
@@ -4503,6 +4509,22 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
       }
       else
       {
+        iter_blk_num++;
+        if (iter_best_num == 0){
+          iter_zero_num += 1;
+        }
+        else if(iter_best_num == 1){
+          iter_one_num += 1;
+        }
+        else if(iter_best_num == 2){
+          iter_two_num += 1;
+        }
+        else if(iter_best_num == 3){
+          iter_three_num += 1;
+        }
+        else if (iter_best_num == 4){
+          iter_four_num += 1;
+        }
         cu.smvdMode = 0;
         CHECK( !cu.affine, "Wrong." );
         uiLastMode = uiLastModeTemp;
@@ -8900,6 +8922,7 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
       }
 #endif
       uiBitsBest = bitsTemp;
+      iter_best_num = iter;
       memcpy( acMv, acMvTemp, sizeof(Mv) * 3 );
       mvpIdx = bestMvpIdx;
     }
