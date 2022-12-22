@@ -326,6 +326,29 @@ int main(int argc, char* argv[])
          encTime / 1000.0);
 #endif
 
+  fprintf(stdout, "\t\t\t==== Iter Num ====    \n\tTotal_number: %d\n\titer_zero_num\t: %d (%.5f %%)\n\titer_one_num\t: %d (%.5f %%)\n\titer_two_num\t: %d (%.5f %%)\n\titer_three_num\t: %d (%.5f %%)\n\titer_four_num\t: %d (%.5f %%) ",
+                    iter_blk_num,
+                    iter_zero_num ,(iter_zero_num / (iter_blk_num * 1.0f)*100),
+                    iter_one_num  ,(iter_one_num  / (iter_blk_num * 1.0f)*100),
+                    iter_two_num  ,(iter_two_num  / (iter_blk_num * 1.0f)*100),
+                    iter_three_num,(iter_three_num/ (iter_blk_num * 1.0f)*100),
+                    iter_four_num ,(iter_four_num / (iter_blk_num * 1.0f)*100));
+  fprintf(stdout, "\n\t\t\t==== Affine Block ==== \n\tTotal_number\t: %d\n\tblk_128X128_num\t: %d (%.5f %%)\n\tblk_128X64_num\t: %d (%.5f %%)\n\tblk_64X128_num\t: %d (%.5f %%)\n\tblk_64X64_num\t: %d (%.5f %%)\n\tblk_64X32_num\t: %d (%.5f %%)\n\tblk_32X64_num\t: %d (%.5f %%)\n\tblk_32X32_num\t: %d (%.5f %%)\
+  \n\tblk_32X16_num\t: %d (%.5f %%)\n\tblk_16X32_num\t: %d (%.5f %%)\n\tblk_16X16_num\t: %d (%.5f %%)\n\tblk_16X8_num\t: %d (%.5f %%)\n\tblk_8X16_num\t: %d (%.5f %%)\n\tblk_8X8_num\t: %d (%.5f %%)",
+                    affine_blk_num  ,
+                    blk_128X128_num ,(blk_128X128_num / (affine_blk_num * 1.0f)*100),
+                    blk_128X64_num  ,(blk_128X64_num  / (affine_blk_num * 1.0f)*100),
+                    blk_64X128_num  ,(blk_64X128_num  / (affine_blk_num * 1.0f)*100),
+                    blk_64X64_num   ,(blk_64X64_num   / (affine_blk_num * 1.0f)*100),
+                    blk_64X32_num   ,(blk_64X32_num   / (affine_blk_num * 1.0f)*100),
+                    blk_32X64_num   ,(blk_32X64_num   / (affine_blk_num * 1.0f)*100),
+                    blk_32X32_num   ,(blk_32X32_num   / (affine_blk_num * 1.0f)*100),
+                    blk_32X16_num   ,(blk_32X16_num   / (affine_blk_num * 1.0f)*100),
+                    blk_16X32_num   ,(blk_16X32_num   / (affine_blk_num * 1.0f)*100),
+                    blk_16X16_num   ,(blk_16X16_num   / (affine_blk_num * 1.0f)*100),
+                    blk_16X8_num    ,(blk_16X8_num    / (affine_blk_num * 1.0f)*100),
+                    blk_8X16_num    ,(blk_8X16_num    / (affine_blk_num * 1.0f)*100),
+                    blk_8X8_num     ,(blk_8X8_num     / (affine_blk_num * 1.0f)*100));
   return 0;
 }
 

@@ -57,7 +57,13 @@
 #include "EncReshape.h"
 //! \ingroup EncoderLib
 //! \{
-
+extern int iter_blk_num   ;
+extern int iter_best_num  ;
+extern int iter_zero_num  ;
+extern int iter_one_num   ;
+extern int iter_two_num   ;
+extern int iter_three_num ;
+extern int iter_four_num  ;
 // ====================================================================================================================
 // Class definition
 // ====================================================================================================================

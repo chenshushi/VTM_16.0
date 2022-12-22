@@ -501,7 +501,7 @@ bool EncCu::xCheckBestMode( CodingStructure *&tempCS, CodingStructure *&bestCS, 
 void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Partitioner& partitioner, double maxCostAllowed )
 {
   CHECK(maxCostAllowed < 0, "Wrong value of maxCostAllowed!");
-
+    flg_record = 0;
   uint32_t compBegin;
   uint32_t numComp;
   bool jointPLT = false;
