@@ -46,19 +46,19 @@
 //! \ingroup EncoderLib
 //! \{
 extern int affine_blk_num  ;
+extern int other_blk_number ;
 extern int blk_128X128_num ;
 extern int blk_128X64_num  ;
 extern int blk_64X128_num  ;
 extern int blk_64X64_num   ;
 extern int blk_64X32_num   ;
 extern int blk_32X64_num   ;
+extern int blk_64X16_num   ;
+extern int blk_16X64_num   ;
 extern int blk_32X32_num   ;
 extern int blk_32X16_num   ;
 extern int blk_16X32_num   ;
 extern int blk_16X16_num   ;
-extern int blk_16X8_num    ;
-extern int blk_8X16_num    ;
-extern int blk_8X8_num     ;
 extern int flg_record      ;
 class EncCu;
 class CABACWriter

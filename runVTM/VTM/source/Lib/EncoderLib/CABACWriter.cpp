@@ -50,21 +50,21 @@
 
 //! \ingroup EncoderLib
 //! \{
-int affine_blk_num   = 0;
-int blk_128X128_num  = 0;
-int blk_128X64_num   = 0;
-int blk_64X128_num   = 0;
-int blk_64X64_num    = 0;
-int blk_64X32_num    = 0;
-int blk_32X64_num    = 0;
-int blk_32X32_num    = 0;
-int blk_32X16_num    = 0;
-int blk_16X32_num    = 0;
-int blk_16X16_num    = 0;
-int blk_16X8_num     = 0;
-int blk_8X16_num     = 0;
-int blk_8X8_num      = 0;
-int flg_record       = 0;
+int affine_blk_num  = 0;
+int other_blk_number = 0;
+int blk_128X128_num = 0;
+int blk_128X64_num  = 0;
+int blk_64X128_num  = 0;
+int blk_64X64_num   = 0;
+int blk_64X32_num   = 0;
+int blk_64X16_num   = 0;
+int blk_16X64_num   = 0;
+int blk_32X64_num   = 0;
+int blk_32X32_num   = 0;
+int blk_32X16_num   = 0;
+int blk_16X32_num   = 0;
+int blk_16X16_num   = 0;
+int flg_record      = 0;
 void CABACWriter::initCtxModels( const Slice& slice )
 {
   int       qp                = slice.getSliceQp();
@@ -1907,6 +1907,12 @@ void CABACWriter::affine_flag( const CodingUnit& cu )
         else if (cu.lumaSize().width == 32 && cu.lumaSize().height == 64){
           blk_32X64_num += 1;
         }
+        else if (cu.lumaSize().width == 64 && cu.lumaSize().height == 16){
+          blk_64X16_num += 1;
+        }
+        else if (cu.lumaSize().width == 16 && cu.lumaSize().height == 64){
+          blk_16X64_num += 1;
+        }
         else if (cu.lumaSize().width == 32 && cu.lumaSize().height == 32){
           blk_32X32_num += 1;
         }
@@ -1919,14 +1925,8 @@ void CABACWriter::affine_flag( const CodingUnit& cu )
         else if (cu.lumaSize().width == 16 && cu.lumaSize().height == 16){
           blk_16X16_num += 1;
         }
-        else if (cu.lumaSize().width == 16 && cu.lumaSize().height == 8){
-          blk_16X8_num += 1;
-        }
-        else if (cu.lumaSize().width == 8 && cu.lumaSize().height == 16){
-          blk_8X16_num += 1;
-        }
-        else if (cu.lumaSize().width == 8 && cu.lumaSize().height == 8){
-          blk_8X8_num += 1;
+        else{
+          other_blk_number += 1;
         }
       }
       unsigned ctxId = 0;
