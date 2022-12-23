@@ -8152,6 +8152,70 @@ void solveEqual(double dEqualCoeff[7][7], int order, double *dAffinePara)
   }
 }
 
+void Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dAffinePara)
+{
+  for (int k = 0; k < order; k++)
+  {
+    dAffinePara[k] = 0.;
+  }
+
+  // row echelon
+  for (int i = 1; i < order + 1; i++)
+  {
+    // find column max
+    double temp = fabs(dEqualCoeff[i][i-1]);
+    int tempIdx = i;
+    for (int m = i + 1; m < order + 1; m++)
+    {
+      if ( fabs(dEqualCoeff[m][i-1]) > temp )
+      {
+        temp = fabs(dEqualCoeff[m][i-1]);
+        tempIdx = m;
+      }
+    }
+
+    // swap line
+    if ( tempIdx != i )
+    {
+      for (int j = 0; j < order + 1; j++)
+      {
+        dEqualCoeff[0][j] = dEqualCoeff[i][j];
+        dEqualCoeff[i][j] = dEqualCoeff[tempIdx][j];
+        dEqualCoeff[tempIdx][j] = dEqualCoeff[0][j];
+      }
+    }
+
+    // elimination first column
+    if ( dEqualCoeff[i][i - 1] == 0. )
+    {
+      return;
+    }
+    // 
+    double first_element;
+    first_element = dEqualCoeff[i][i-1];
+    for (int j = i-1; j < order + 1; j++)
+      {
+        dEqualCoeff[i][j] /= first_element;
+      }
+ 
+    for (int m = 1; m < order + 1; m++)
+    {
+      if(m != i) {
+        first_element = dEqualCoeff[m][i-1];
+        for (int j = i-1; j < order + 1; j++)
+        {
+          dEqualCoeff[m][j] = dEqualCoeff[m][j] -  first_element * dEqualCoeff[i][j];
+        }
+      }
+    }
+  }
+
+  for (int i = 0; i < order; i++)
+  {
+    dAffinePara[i] = dEqualCoeff[i + 1][order];
+  }
+}
+
 void InterSearch::xCheckBestAffineMVP( PredictionUnit &pu, AffineAMVPInfo &affineAMVPInfo, RefPicList eRefPicList, Mv acMv[3], Mv acMvPred[3], int& riMVPIdx, uint32_t& ruiBits, Distortion& ruiCost )
 {
 #if GDR_ENABLED
@@ -8520,7 +8584,8 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
     double dDeltaMv[6]={0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
     Mv acDeltaMv[3];
 
-    solveEqual( pdEqualCoeff, affineParaNum, dAffinePara );
+    // solveEqual( pdEqualCoeff, affineParaNum, dAffinePara );
+    Gauss_Jordan_solveEqual(pdEqualCoeff, affineParaNum, dAffinePara);
 
     // convert to delta mv
     dDeltaMv[0] = dAffinePara[0];
