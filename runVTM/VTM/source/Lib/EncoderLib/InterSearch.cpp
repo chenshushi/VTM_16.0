@@ -8530,7 +8530,7 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
       memset( &i64EqualCoeff[row][0], 0, iParaNum * sizeof( int64_t ) );
     }
 
-    m_EqualCoeffComputer( piError, width, pdDerivate, width, i64EqualCoeff, width, height
+    xEqualCoeffComputer( piError, width, pdDerivate, width, i64EqualCoeff, width, height
       , (pu.cu->affineType == AFFINEMODEL_6PARAM)
     );
 

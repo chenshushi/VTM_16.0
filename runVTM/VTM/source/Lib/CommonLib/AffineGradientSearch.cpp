@@ -138,6 +138,15 @@ void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride
     int cy = ((j >> 2) << 2) + 2;
     for ( int k = 0; k != width; k++ )
     {
+      // adjust the cal with 8x8 block
+      bool flg_skip_y = ((j%8 == 0) || (j%8 == 7)) ? true : false;
+      bool flg_skip_x = ((k%8 == 0) || (k%8 == 7)) ? true : false;
+      if (height > 6 && flg_skip_y) {
+        continue;
+      }
+      if (width > 6 && flg_skip_x) {
+        continue;
+      }
       int iC[6];
 
       int idx = j * derivateBufStride + k;
