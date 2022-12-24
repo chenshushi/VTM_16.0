@@ -8151,7 +8151,18 @@ void solveEqual(double dEqualCoeff[7][7], int order, double *dAffinePara)
     dAffinePara[i] = (dEqualCoeff[i + 1][order] - temp) / dEqualCoeff[i + 1][i];
   }
 }
-
+double Float_To_Fixed(double float_num) {
+  int int_num = 40 + 1;  // "1" means symbol
+  double datRanMax = pow(2,int_num) - 1;
+  double datRanMin = - datRanMax;
+  double dec_num = 20;
+  double datScl = pow(2,dec_num);
+  // dec
+  float_num = floor(float_num * datScl)/datScl;
+  // Ran
+  float_num = (float_num < datRanMin) ? datRanMin :(float_num > datRanMax ? datRanMax : float_num);
+  return float_num;
+}
 void Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dAffinePara)
 {
   for (int k = 0; k < order; k++)
@@ -8205,6 +8216,76 @@ void Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dAffin
         for (int j = i-1; j < order + 1; j++)
         {
           dEqualCoeff[m][j] = dEqualCoeff[m][j] -  first_element * dEqualCoeff[i][j];
+        }
+      }
+    }
+  }
+
+  for (int i = 0; i < order; i++)
+  {
+    dAffinePara[i] = dEqualCoeff[i + 1][order];
+  }
+}
+void Fix_Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dAffinePara)
+{
+  for (int k = 0; k < order; k++)
+  {
+    dAffinePara[k] = 0.;
+  }
+  // Float_To_Fixed
+  for (int i = 0; i < order + 1; i++) {
+    for (int j = 0; j < order +1; j++) {
+      dEqualCoeff[i][j] = Float_To_Fixed(dEqualCoeff[i][j]);
+    }
+  }
+  // intitial parameter
+
+  // row echelon
+  for (int i = 1; i < order + 1; i++)
+  {
+    // find column max
+    double temp = fabs(dEqualCoeff[i][i-1]);
+    int tempIdx = i;
+    for (int m = i + 1; m < order + 1; m++)
+    {
+      if ( fabs(dEqualCoeff[m][i-1]) > temp )
+      {
+        temp = fabs(dEqualCoeff[m][i-1]);
+        tempIdx = m;
+      }
+    }
+
+    // swap line
+    if ( tempIdx != i )
+    {
+      for (int j = 0; j < order + 1; j++)
+      {
+        dEqualCoeff[0][j] = dEqualCoeff[i][j];
+        dEqualCoeff[i][j] = dEqualCoeff[tempIdx][j];
+        dEqualCoeff[tempIdx][j] = dEqualCoeff[0][j];
+      }
+    }
+
+    // elimination first column
+    if ( dEqualCoeff[i][i - 1] == 0. )
+    {
+      return;
+    }
+    // 
+    double first_element;
+    first_element = dEqualCoeff[i][i-1];
+    for (int j = i-1; j < order + 1; j++)
+      {
+        dEqualCoeff[i][j] = Float_To_Fixed(dEqualCoeff[i][j] / first_element);
+      }
+ 
+    for (int m = 1; m < order + 1; m++)
+    {
+      if(m != i) {
+        first_element = dEqualCoeff[m][i-1];
+        for (int j = i-1; j < order + 1; j++)
+        {
+          dEqualCoeff[m][j] = Float_To_Fixed(dEqualCoeff[m][j] - Float_To_Fixed(first_element * dEqualCoeff[i][j]));
         }
       }
     }
@@ -8585,7 +8666,7 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
     Mv acDeltaMv[3];
 
     // solveEqual( pdEqualCoeff, affineParaNum, dAffinePara );
-    Gauss_Jordan_solveEqual(pdEqualCoeff, affineParaNum, dAffinePara);
+    Fix_Gauss_Jordan_solveEqual(pdEqualCoeff, affineParaNum, dAffinePara);
 
     // convert to delta mv
     dDeltaMv[0] = dAffinePara[0];
