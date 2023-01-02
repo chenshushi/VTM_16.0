@@ -8802,133 +8802,134 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
     }
   }
 
-  auto checkCPMVRdCost = [&](Mv ctrlPtMv[3])
-  {
-#if GDR_ENABLED
-    bool YYOk = xPredAffineBlk(COMPONENT_Y, pu, refPic, ctrlPtMv, predBuf, false, pu.cu->slice->clpRng(COMPONENT_Y));
-#else
-    xPredAffineBlk(COMPONENT_Y, pu, refPic, ctrlPtMv, predBuf, false, pu.cu->slice->clpRng(COMPONENT_Y));
-#endif
+//   auto checkCPMVRdCost = [&](Mv ctrlPtMv[3])
+//   {
+// #if GDR_ENABLED
+//     bool YYOk = xPredAffineBlk(COMPONENT_Y, pu, refPic, ctrlPtMv, predBuf, false, pu.cu->slice->clpRng(COMPONENT_Y));
+// #else
+//     xPredAffineBlk(COMPONENT_Y, pu, refPic, ctrlPtMv, predBuf, false, pu.cu->slice->clpRng(COMPONENT_Y));
+// #endif
 
-#if GDR_ENABLED
-    if (isEncodeGdrClean)
-    {
-      acMvSolid[0] = aamvpi.mvSolidLT[bestMvpIdx];
-      acMvSolid[1] = aamvpi.mvSolidRT[bestMvpIdx];
-      acMvSolid[2] = aamvpi.mvSolidLB[bestMvpIdx];
+// #if GDR_ENABLED
+//     if (isEncodeGdrClean)
+//     {
+//       acMvSolid[0] = aamvpi.mvSolidLT[bestMvpIdx];
+//       acMvSolid[1] = aamvpi.mvSolidRT[bestMvpIdx];
+//       acMvSolid[2] = aamvpi.mvSolidLB[bestMvpIdx];
 
-      bool isSubPuYYClean = YYOk;
-      bool isSubPuCbClean = true; // (isSubPuYYClean) ? xPredAffineBlk(COMPONENT_Cb, pu, refPic, ctrlPtMv, tmpBuf, false, pu.cu->slice->clpRng(COMPONENT_Cb)) : false;
+//       bool isSubPuYYClean = YYOk;
+//       bool isSubPuCbClean = true; // (isSubPuYYClean) ? xPredAffineBlk(COMPONENT_Cb, pu, refPic, ctrlPtMv, tmpBuf, false, pu.cu->slice->clpRng(COMPONENT_Cb)) : false;
 
-      acMvValid[0] = isSubPuYYClean && isSubPuCbClean;
-      acMvValid[1] = isSubPuYYClean && isSubPuCbClean;
-      acMvValid[2] = isSubPuYYClean && isSubPuCbClean;
+//       acMvValid[0] = isSubPuYYClean && isSubPuCbClean;
+//       acMvValid[1] = isSubPuYYClean && isSubPuCbClean;
+//       acMvValid[2] = isSubPuYYClean && isSubPuCbClean;
 
-      costTempOk = (acMvSolid[0] && acMvSolid[1] && acMvSolid[2]) && (acMvValid[0] && acMvValid[1] && acMvValid[2]);
-    }
-#endif
+//       costTempOk = (acMvSolid[0] && acMvSolid[1] && acMvSolid[2]) && (acMvValid[0] && acMvValid[1] && acMvValid[2]);
+//     }
+// #endif
 
-    // get error
-    Distortion costTemp = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);
-    // get cost with mv
-    m_pcRdCost->setCostScale(0);
-    uint32_t bitsTemp = ruiBits;
-    bitsTemp += xCalcAffineMVBits( pu, ctrlPtMv, acMvPred );
-    costTemp = (Distortion)(floor(fWeight * (double)costTemp) + (double)m_pcRdCost->getCost(bitsTemp));
-    // store best cost and mv
-#if GDR_ENABLED
-    bool allOk = (costTemp < uiCostBest);
-    if (isEncodeGdrClean)
-    {
-      if (costTempOk)
-      {
-        allOk = (uiCostBestOk) ? (costTemp < uiCostBest) : true;
-      }
-      else
-      {
-        allOk = false;
-      }
-    }
+//     // get error
+//     Distortion costTemp = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);
+//     // get cost with mv
+//     m_pcRdCost->setCostScale(0);
+//     uint32_t bitsTemp = ruiBits;
+//     bitsTemp += xCalcAffineMVBits( pu, ctrlPtMv, acMvPred );
+//     costTemp = (Distortion)(floor(fWeight * (double)costTemp) + (double)m_pcRdCost->getCost(bitsTemp));
+//     // store best cost and mv
+// #if GDR_ENABLED
+//     bool allOk = (costTemp < uiCostBest);
+//     if (isEncodeGdrClean)
+//     {
+//       if (costTempOk)
+//       {
+//         allOk = (uiCostBestOk) ? (costTemp < uiCostBest) : true;
+//       }
+//       else
+//       {
+//         allOk = false;
+//       }
+//     }
 
-    if (allOk)
-#else
-    if (costTemp < uiCostBest)
-#endif
-    {
-      uiCostBest = costTemp;
-#if GDR_ENABLED
-      if (isEncodeGdrClean)
-      {
-        uiCostBestOk = costTempOk;
-        rbCleanCandExist = true;
-      }
-#endif
-      uiBitsBest = bitsTemp;
-      ::memcpy(acMv, ctrlPtMv, sizeof(Mv) * 3);
-    }
-  };
+//     if (allOk)
+// #else
+//     if (costTemp < uiCostBest)
+// #endif
+//     {
+//       uiCostBest = costTemp;
+// #if GDR_ENABLED
+//       if (isEncodeGdrClean)
+//       {
+//         uiCostBestOk = costTempOk;
+//         rbCleanCandExist = true;
+//       }
+// #endif
+//       uiBitsBest = bitsTemp;
+//       ::memcpy(acMv, ctrlPtMv, sizeof(Mv) * 3);
+//     }
+//   };
 
   const uint32_t mvShiftTable[3] = {MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL - MV_PRECISION_INTERNAL, MV_PRECISION_INTERNAL - MV_PRECISION_INT};
   const uint32_t mvShift = mvShiftTable[pu.cu->imv];
-  if (uiCostBest <= AFFINE_ME_LIST_MVP_TH*m_hevcCost)
+  if ((uiCostBest <= AFFINE_ME_LIST_MVP_TH*m_hevcCost) || 1)
   {
 
-    Mv mvPredTmp[3] = { acMvPred[0], acMvPred[1], acMvPred[2] };
+    // Mv mvPredTmp[3] = { acMvPred[0], acMvPred[1], acMvPred[2] };
     Mv mvME[3];
     ::memcpy(mvME, acMv, sizeof(Mv) * 3);
-    Mv dMv = mvME[0] - mvPredTmp[0];
+    // Mv dMv = mvME[0] - mvPredTmp[0];
 
-    for (int j = 0; j < mvNum; j++)
-    {
-      if ((!j && mvME[j] != mvPredTmp[j]) || (j && mvME[j] != (mvPredTmp[j] + dMv)))
-      {
-        ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
-        acMvTemp[j] = mvPredTmp[j];
+    // for (int j = 0; j < mvNum; j++)
+    // {
+    //   if ((!j && mvME[j] != mvPredTmp[j]) || (j && mvME[j] != (mvPredTmp[j] + dMv)))
+    //   {
+    //     ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
+    //     acMvTemp[j] = mvPredTmp[j];
 
-        if (j)
-        {
-          acMvTemp[j] += dMv;
-        }
+    //     if (j)
+    //     {
+    //       acMvTemp[j] += dMv;
+    //     }
 
-        checkCPMVRdCost(acMvTemp);
-      }
-    }
+    //     checkCPMVRdCost(acMvTemp);
+    //   }
+    // }
 
-    //keep the rotation/zoom;
-    if (mvME[0] != mvPredTmp[0])
-    {
-      ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
-      for (int i = 1; i < mvNum; i++)
-      {
-        acMvTemp[i] -= dMv;
-      }
-      acMvTemp[0] = mvPredTmp[0];
+    // //keep the rotation/zoom;
+    // if (mvME[0] != mvPredTmp[0])
+    // {
+    //   ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
+    //   for (int i = 1; i < mvNum; i++)
+    //   {
+    //     acMvTemp[i] -= dMv;
+    //   }
+    //   acMvTemp[0] = mvPredTmp[0];
 
-      checkCPMVRdCost(acMvTemp);
-    }
+    //   checkCPMVRdCost(acMvTemp);
+    // }
 
-    //keep the translation;
-    if (pu.cu->affineType == AFFINEMODEL_6PARAM && mvME[1] != (mvPredTmp[1] + dMv) && mvME[2] != (mvPredTmp[2] + dMv))
-    {
-      ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
+    // //keep the translation;
+    // if (pu.cu->affineType == AFFINEMODEL_6PARAM && mvME[1] != (mvPredTmp[1] + dMv) && mvME[2] != (mvPredTmp[2] + dMv))
+    // {
+    //   ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
 
-      acMvTemp[1] = mvPredTmp[1] + dMv;
-      acMvTemp[2] = mvPredTmp[2] + dMv;
+    //   acMvTemp[1] = mvPredTmp[1] + dMv;
+    //   acMvTemp[2] = mvPredTmp[2] + dMv;
 
-      checkCPMVRdCost(acMvTemp);
-    }
+    //   checkCPMVRdCost(acMvTemp);
+    // }
 
     // 8 nearest neighbor search
     int testPos[8][2] = { { -1, 0 },{ 0, -1 },{ 0, 1 },{ 1, 0 },{ -1, -1 },{ -1, 1 },{ 1, 1 },{ 1, -1 } };
-    const int maxSearchRound = (pu.cu->imv) ? 3 : ((m_pcEncCfg->getUseAffineAmvrEncOpt() && m_pcEncCfg->getIsLowDelay()) ? 2 : 3);
+    // const int maxSearchRound = (pu.cu->imv) ? 3 : ((m_pcEncCfg->getUseAffineAmvrEncOpt() && m_pcEncCfg->getIsLowDelay()) ? 2 : 3);
 
-    for (int rnd = 0; rnd < maxSearchRound; rnd++)
+    for (int rnd = 0; rnd < 1; rnd++)
     {
       bool modelChange = false;
       //search the model parameters with finear granularity;
-      for (int j = 0; j < mvNum; j++)
+      for (int j = 0; j < 1; j++)
       {
         bool loopChange = false;
+        loopChange = true;
         for (int iter = 0; iter < 2; iter++)
         {
           if (iter == 1 && !loopChange)
