@@ -50,6 +50,7 @@
 #include "RdCost.h"
 #include "ContextModelling.h"
 // forward declaration
+extern bool flgMcblk;
 class Mv;
 
 //! \ingroup CommonLib
@@ -148,8 +149,9 @@ protected:
   void xSubPuMC(PredictionUnit& pu, PelUnitBuf& predBuf, const RefPicList &eRefPicList = REF_PIC_LIST_X, const bool luma = true, const bool chroma = true);
   void xSubPuBio(PredictionUnit& pu, PelUnitBuf& predBuf, const RefPicList &eRefPicList = REF_PIC_LIST_X, PelUnitBuf* yuvDstTmp = NULL);
   void destroy();
-
-
+  void xClipMvForMc(int Blk00Mv, int Blk01Mv, int Blk10Mv, int Blk11Mv, int &Mv, int blkSize, int dltPxl );
+  void Compare (int NumA, int NumB, int MvA, int MvB,int &NumBig, int &NumSmall, int &MvBig, int &MvSmall);
+  void MvNum(int Blk00Mv, int Blk01Mv, int Blk10Mv, int Blk11Mv,int &Num);
   MotionInfo      m_SubPuMiBuf[(MAX_CU_SIZE * MAX_CU_SIZE) >> (MIN_CU_LOG2 << 1)];
 #if JVET_J0090_MEMORY_BANDWITH_MEASURE
   CacheModel      *m_cacheModel;

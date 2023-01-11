@@ -50,7 +50,7 @@
 // ====================================================================================================================
 // Constructor / destructor / initialize
 // ====================================================================================================================
-
+bool  flgMcblk  = false;
 InterPrediction::InterPrediction()
 :
   m_currChromaFormat( NUM_CHROMA_FORMAT )
@@ -880,6 +880,117 @@ bool InterPrediction::isSubblockVectorSpreadOverLimit( int a, int b, int c, int 
   }
   return false;
 }
+void InterPrediction::MvNum(int Mv, int Mv1, int Mv2, int Mv3,int &Num){
+  int MvNum[3] = {0};
+  if (Mv == Mv1) MvNum[0] = 1;
+  if (Mv == Mv2) MvNum[1] = 1;
+  if (Mv == Mv3) MvNum[2] = 1;
+  Num = 1 + MvNum[0] + MvNum[1] + MvNum[2];
+}
+void InterPrediction::Compare(int NumA, int NumB, int MvA, int MvB,int &NumBig, int &NumSmall, int &MvBig, int &MvSmall){
+  if (NumA >= NumB) {
+    NumBig   = NumA;
+    NumSmall = NumB;
+    MvBig    = MvA;
+    MvSmall  = MvB;
+  }
+  else{
+    NumBig   = NumB;
+    NumSmall = NumA;
+    MvBig    = MvB;
+    MvSmall  = MvA;
+  }
+};
+
+void InterPrediction::xClipMvForMc(int Blk00Mv, int Blk01Mv, int Blk10Mv, int Blk11Mv, int &Mv, int blkSize, int dltPxl ) {
+  int  Blk00Num, Blk01Num,Blk10Num,Blk11Num;
+  MvNum(Blk00Mv, Blk01Mv, Blk10Mv, Blk11Mv, Blk00Num);
+  MvNum(Blk01Mv, Blk00Mv, Blk10Mv, Blk11Mv, Blk01Num);
+  MvNum(Blk10Mv, Blk01Mv, Blk00Mv, Blk11Mv, Blk10Num);
+  MvNum(Blk11Mv, Blk01Mv, Blk10Mv, Blk00Mv, Blk11Num);
+
+  int  NumBigCom1, NumSmaCom1, MvBigCom1, MvsmaCom1,
+       NumBigCom2, NumSmaCom2, MvBigCom2, MvsmaCom2,
+       NumBigTemp, NumSmaTemp, MvBigTemp, MvsmaTemp;
+  int Mvfirst, Mvsecond, Mvthird, Mvfourth,
+      Numfirst, Numsecond, Numthird, Numfourth;
+
+  Compare(Blk00Num  , Blk01Num  , Blk00Mv  , Blk01Mv  , NumBigCom1, NumSmaCom1, MvBigCom1, MvsmaCom1);
+  Compare(Blk10Num  , Blk11Num  , Blk10Mv  , Blk11Mv  , NumBigCom2, NumSmaCom2, MvBigCom2, MvsmaCom2);
+  Compare(NumBigCom1, NumBigCom2, MvBigCom1, MvBigCom2, Numfirst  , NumBigTemp, Mvfirst  , MvBigTemp);
+  Compare(NumSmaCom1, NumSmaCom2, MvsmaCom1, MvsmaCom2, NumSmaTemp, Numfourth , MvsmaTemp, Mvfourth );
+  Compare(NumBigTemp, NumSmaTemp, MvBigTemp, MvsmaTemp, Numsecond , Numthird  , Mvsecond , Mvthird  );
+
+  int MvFrac = 15;
+  int MvMax, MvMin;
+  int numMV =0 ;
+  if ((Numfirst == 4)){
+    numMV = 1;
+  }
+  if ((Numfirst == 1)){
+    numMV = 4;
+  }
+  if ((Numfirst == 3)){
+    numMV = 2;
+    Mvsecond = Mvfourth;
+  }
+  if ((Numfirst == 2)&&(Numsecond == 2)&&(Numthird == 2)&&(Numfourth == 2)){
+    numMV = 2;
+    Mvsecond = Mvthird;
+  }
+  if ((Numfirst == 2)&&(Numsecond == 2)&&(Numthird == 1)&&(Numfourth == 1)){
+    numMV = 3;
+    Mvsecond = Mvthird;
+    Mvthird = Mvfourth;
+  }
+
+  if (dltPxl == 0){
+    MvMin = Mvfirst;
+    MvMax = Mvfirst + MvFrac;
+  }
+  else if (dltPxl == 1){
+    if ((Mvsecond - Mvfirst) < 0){
+      MvMin = Mvfirst - 16;
+      MvMax = Mvfirst + MvFrac;
+    }
+    else {
+      MvMin = Mvfirst;
+      MvMax = Mvfirst + MvFrac + 16;
+    }
+  }
+  else { // dltPxl == 2
+    if (numMV == 1){
+      MvMin = Mvfirst;
+      MvMax = Mvfirst + MvFrac + 32;
+    }
+    else if (numMV == 2){
+      if ((Mvsecond - Mvfirst) < 0){
+        MvMin = Mvfirst - 32;
+        MvMax = Mvfirst + MvFrac;
+      }
+      else {
+        MvMin = Mvfirst;
+        MvMax = Mvfirst + MvFrac + 32;
+      }
+    }
+    else {
+      if ((Mvfirst > Mvsecond) && (Mvfirst > Mvthird)){
+        MvMin = Mvfirst - 32;
+        MvMax = Mvfirst + MvFrac;
+      }
+      else if ((Mvfirst < Mvsecond) && (Mvfirst < Mvthird)) {
+        MvMin = Mvfirst;
+        MvMax = Mvfirst + MvFrac + 32;
+      }
+      else {
+        MvMin = Mvfirst - 16;
+        MvMax = Mvfirst + MvFrac + 16;
+      }
+    }
+  }
+  Mv = ((Mv > MvMax) ? MvMax : Mv);
+  Mv = ((Mv < MvMin) ? MvMin : Mv);
+}
 
 #if GDR_ENABLED
 bool InterPrediction::xPredAffineBlk(const ComponentID &compID, const PredictionUnit &pu, const Picture *refPic, const Mv *_mv, PelUnitBuf &dstPic, const bool &bi, const ClpRng &clpRng, bool genChromaMv, const std::pair<int, int> scalingRatio)
@@ -1091,12 +1202,18 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
       }
     }
   }
+  ////////
+  Mv  Blk00Mv,Blk01Mv,Blk10Mv,Blk11Mv,MvTmp;
+  int BlkSize = 8;
+  int BlkLtH,BlkLtW;
+  ////////
   // get prediction block by block
   for ( int h = 0; h < cxHeight; h += blockHeight )
   {
     for ( int w = 0; w < cxWidth; w += blockWidth )
     {
-
+      BlkLtH = (h / BlkSize) * BlkSize;
+      BlkLtW = (w / BlkSize) * BlkSize;
       int iMvScaleTmpHor, iMvScaleTmpVer;
       if (compID == COMPONENT_Y || pu.chromaFormat == CHROMA_444)
       {
@@ -1104,6 +1221,16 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
         {
           iMvScaleTmpHor = iMvScaleHor + iDMvHorX * (iHalfBW + w) + iDMvVerX * (iHalfBH + h);
           iMvScaleTmpVer = iMvScaleVer + iDMvHorY * (iHalfBW + w) + iDMvVerY * (iHalfBH + h);
+          if (flgMcblk){
+            Blk00Mv.hor    = iMvScaleHor + iDMvHorX * (iHalfBW + BlkLtW    ) + iDMvVerX * (iHalfBH + BlkLtH    );
+            Blk00Mv.ver    = iMvScaleVer + iDMvHorY * (iHalfBW + BlkLtW    ) + iDMvVerY * (iHalfBH + BlkLtH    );
+            Blk01Mv.hor    = iMvScaleHor + iDMvHorX * (iHalfBW + BlkLtW + 4) + iDMvVerX * (iHalfBH + BlkLtH    );
+            Blk01Mv.ver    = iMvScaleVer + iDMvHorY * (iHalfBW + BlkLtW + 4) + iDMvVerY * (iHalfBH + BlkLtH    );
+            Blk10Mv.hor    = iMvScaleHor + iDMvHorX * (iHalfBW + BlkLtW    ) + iDMvVerX * (iHalfBH + BlkLtH + 4);
+            Blk10Mv.ver    = iMvScaleVer + iDMvHorY * (iHalfBW + BlkLtW    ) + iDMvVerY * (iHalfBH + BlkLtH + 4);
+            Blk11Mv.hor    = iMvScaleHor + iDMvHorX * (iHalfBW + BlkLtW + 4) + iDMvVerX * (iHalfBH + BlkLtH + 4);
+            Blk11Mv.ver    = iMvScaleVer + iDMvHorY * (iHalfBW + BlkLtW + 4) + iDMvVerY * (iHalfBH + BlkLtH + 4);
+          }
         }
         else
         {
@@ -1116,6 +1243,44 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
         iMvScaleTmpHor = tmpMv.getHor();
         iMvScaleTmpVer = tmpMv.getVer();
 
+        if (flgMcblk){
+          //00
+          roundAffineMv(Blk00Mv.hor, Blk00Mv.ver, shift);
+          MvTmp.set(Blk00Mv.hor, Blk00Mv.ver);
+          MvTmp.clipToStorageBitDepth();
+          if (isRefScaled == false){
+            clipMv(MvTmp, pu.lumaPos(), pu.lumaSize(), *pu.cs->sps, *pu.cs->pps);
+          }
+          Blk00Mv.hor = MvTmp.getHor();
+          Blk00Mv.ver = MvTmp.getVer();
+          //01
+          roundAffineMv(Blk01Mv.hor, Blk01Mv.ver, shift);
+          MvTmp.set(Blk01Mv.hor, Blk01Mv.ver);
+          MvTmp.clipToStorageBitDepth();
+          if (isRefScaled == false){
+            clipMv(MvTmp, pu.lumaPos(), pu.lumaSize(), *pu.cs->sps, *pu.cs->pps);
+          }
+          Blk01Mv.hor = MvTmp.getHor();
+          Blk01Mv.ver = MvTmp.getVer();
+          //10
+          roundAffineMv(Blk10Mv.hor, Blk10Mv.ver, shift);
+          MvTmp.set(Blk10Mv.hor, Blk10Mv.ver);
+          MvTmp.clipToStorageBitDepth();
+          if (isRefScaled == false){
+            clipMv(MvTmp, pu.lumaPos(), pu.lumaSize(), *pu.cs->sps, *pu.cs->pps);
+          }
+          Blk10Mv.hor = MvTmp.getHor();
+          Blk10Mv.ver = MvTmp.getVer();
+          //11
+          roundAffineMv(Blk11Mv.hor, Blk11Mv.ver, shift);
+          MvTmp.set(Blk11Mv.hor, Blk11Mv.ver);
+          MvTmp.clipToStorageBitDepth();
+          if (isRefScaled == false){
+            clipMv(MvTmp, pu.lumaPos(), pu.lumaSize(), *pu.cs->sps, *pu.cs->pps);
+          }
+          Blk11Mv.hor = MvTmp.getHor();
+          Blk11Mv.ver = MvTmp.getVer();
+        }
         // clip and scale
         if ( refPic->isWrapAroundEnabled( pu.cs->pps ) )
         {
@@ -1204,6 +1369,10 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
         // get the MV in high precision
         int xFrac, yFrac, xInt, yInt;
 
+        if (flgMcblk && 0){
+          xClipMvForMc((Blk00Mv.hor>>4)<<4, (Blk01Mv.hor>>4)<<4, (Blk10Mv.hor>>4)<<4, (Blk11Mv.hor>>4)<<4, iMvScaleTmpHor, BlkSize, 0);
+          xClipMvForMc((Blk00Mv.ver>>4)<<4, (Blk01Mv.ver>>4)<<4, (Blk10Mv.ver>>4)<<4, (Blk11Mv.ver>>4)<<4, iMvScaleTmpVer, BlkSize, 0);
+        }
         if (isLuma(compID))
         {
           xInt  = iMvScaleTmpHor >> 4;

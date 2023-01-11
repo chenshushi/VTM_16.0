@@ -8505,12 +8505,13 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
   {
     acMvTemp[2].roundAffinePrecInternal2Amvr(pu.cu->imv);
   }
+  flgMcblk = true;
 #if GDR_ENABLED
   bool YYOk = xPredAffineBlk(COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cs->slice->clpRng(COMPONENT_Y));
 #else
   xPredAffineBlk( COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cs->slice->clpRng( COMPONENT_Y ) );
 #endif
-
+  flgMcblk = false;
   // get error
   uiCostBest = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA), COMPONENT_Y, distFunc);
 
@@ -8723,13 +8724,13 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
         break;
       }
     }
-
+    flgMcblk = true;
 #if GDR_ENABLED
     bool YYOk = xPredAffineBlk(COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cu->slice->clpRng(COMPONENT_Y));
 #else
     xPredAffineBlk( COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cu->slice->clpRng( COMPONENT_Y ) );
 #endif
-
+flgMcblk = false;
     // get error
     Distortion costTemp = m_pcRdCost->getDistPart(predBuf.Y(), pBuf->Y(), pu.cs->sps->getBitDepth(CHANNEL_TYPE_LUMA),
                                                   COMPONENT_Y, distFunc);
@@ -8945,12 +8946,13 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
             acMvTemp[j].set(centerMv[j].getHor() + testPos[i][0] * (1 << mvShift),
                             centerMv[j].getVer() + testPos[i][1] * (1 << mvShift));
             clipMv( acMvTemp[j], pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps );
+            flgMcblk = true;
 #if GDR_ENABLED
             bool YYOk = xPredAffineBlk(COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cu->slice->clpRng(COMPONENT_Y));
 #else
             xPredAffineBlk(COMPONENT_Y, pu, refPic, acMvTemp, predBuf, false, pu.cu->slice->clpRng(COMPONENT_Y));
 #endif
-
+            flgMcblk = false;
 #if GDR_ENABLED
             if (isEncodeGdrClean)
             {
