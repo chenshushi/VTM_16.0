@@ -326,6 +326,22 @@ int main(int argc, char* argv[])
          encTime / 1000.0);
 #endif
 
+  printf("=================Time=================\n");
+
+  sumTime = InterIMV      + Inter         + HashInter  + AffineMerge2Nx2N + Merge2Nx2N
+          + MergeGeo2Nx2N + Intra         + PLT        + IBCMode          + IBCModeMerge2Nx2N;
+
+  printf("\tInterIMV          : (%.5f%%)\n",(InterIMV           / (sumTime * 1.0f)*100));
+  printf("\tInter             : (%.5f%%)\n",(Inter              / (sumTime * 1.0f)*100));
+  printf("\tHashInter         : (%.5f%%)\n",(HashInter          / (sumTime * 1.0f)*100));
+  printf("\tAffineMerge2Nx2N  : (%.5f%%)\n",(AffineMerge2Nx2N   / (sumTime * 1.0f)*100));
+  printf("\tMerge2Nx2N        : (%.5f%%)\n",(Merge2Nx2N         / (sumTime * 1.0f)*100));
+  printf("\tMergeGeo2Nx2N     : (%.5f%%)\n",(MergeGeo2Nx2N      / (sumTime * 1.0f)*100));
+  printf("\tIntra             : (%.5f%%)\n",(Intra              / (sumTime * 1.0f)*100));
+  printf("\tPLT               : (%.5f%%)\n",(PLT                / (sumTime * 1.0f)*100));
+  printf("\tIBCMode           : (%.5f%%)\n",(IBCMode            / (sumTime * 1.0f)*100));
+  printf("\tIBCModeMerge2Nx2N : (%.5f%%)\n",(IBCModeMerge2Nx2N  / (sumTime * 1.0f)*100));
+
   return 0;
 }
 

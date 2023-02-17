@@ -61,6 +61,17 @@
 class EncLib;
 class HLSWriter;
 class EncSlice;
+extern  clock_t srtartTime,endTime,sumTime;
+extern  clock_t InterIMV          ,
+                Inter             ,
+                HashInter         ,
+                AffineMerge2Nx2N  ,
+                Merge2Nx2N        ,
+                MergeGeo2Nx2N     ,
+                Intra             ,
+                PLT               ,
+                IBCMode           ,
+                IBCModeMerge2Nx2N ;
 
 // ====================================================================================================================
 // Class definition
