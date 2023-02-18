@@ -557,6 +557,7 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
   }
 
   Slice&   slice      = *tempCS->slice;
+  int current_frame =   slice.getPOC();
   const PPS &pps      = *tempCS->pps;
   const SPS &sps      = *tempCS->sps;
   const uint32_t uiLPelX  = tempCS->area.Y().lumaPos().x;
@@ -881,7 +882,12 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
       if (slice.getSPS()->getUseColorTrans() && !CS::isDualITree(*tempCS))
       {
         bool skipSecColorSpace = false;
+        srtartTime = clock();
         skipSecColorSpace = xCheckRDCostIntra(tempCS, bestCS, partitioner, currTestMode, (m_pcEncCfg->getRGBFormatFlag() ? true : false));
+        endTime = clock();
+        if (current_frame != 0) {
+          Intra += endTime - srtartTime;
+        }
         if ((m_pcEncCfg->getCostMode() == COST_LOSSLESS_CODING && slice.isLossless()) && !m_pcEncCfg->getRGBFormatFlag())
         {
           skipSecColorSpace = true;
@@ -891,7 +897,9 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
           srtartTime = clock();
           xCheckRDCostIntra(tempCS, bestCS, partitioner, currTestMode, (m_pcEncCfg->getRGBFormatFlag() ? false : true));
           endTime = clock();
-          Intra += endTime - srtartTime;
+          if (current_frame != 0) {
+            Intra += endTime - srtartTime;
+          }
         }
 
         if (!tempCS->firstColorSpaceTestOnly)
@@ -915,7 +923,9 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
         srtartTime = clock();
         xCheckRDCostIntra(tempCS, bestCS, partitioner, currTestMode, false);
         endTime = clock();
-        Intra += endTime - srtartTime;
+        if (current_frame != 0) {
+          Intra += endTime - srtartTime;
+        }
       }
 #if JVET_Y0152_TT_ENC_SPEEDUP
       splitRdCostBest[CTU_LEVEL] = bestCS->cost;
