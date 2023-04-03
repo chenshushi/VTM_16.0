@@ -57,7 +57,7 @@ update:
 	mkdir -p  $(CSTR_DIR_PRJ)/build ;\
 	cd        $(CSTR_DIR_PRJ)/build ;\
 	cmake ..                           ;\
-	make  -j4
+	make  -j16
 
 create: update
 	mkdir -p  ${CSTR_SESSION}

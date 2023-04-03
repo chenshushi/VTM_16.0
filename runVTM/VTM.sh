@@ -29,7 +29,7 @@
 #*** PARAMETER *****************************************************************
 # directory or file name
 CSTR_CDC="VTM"
-CSTR_DIR_SRC="/home/chenss/SEQUENCE_VTM/VVC"    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+CSTR_DIR_SRC="/mnt/e/DOWNLOAD/SEQUENCE/HM"    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT   E:\DOWNLOAD\SEQUENCE\HM
 CSTR_DIR_DST="dump"                                       #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_LOG_RUN="$CSTR_DIR_DST/runs.log"                     #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_LOG_JOB="$CSTR_DIR_DST/jobs.log"                     #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
@@ -76,39 +76,39 @@ LIST_SEQ_AVAILABLE=(
     "BasketballDrillText"   501     50      832     480     8
 )
 LIST_SEQ=(
-    # # A1
-    "FoodMarket4"           32     60      3840    2160    10
-    "Tango2"                32     60      3840    2160    10
-    "Campfire"              32     30      3840    2160    10
-    # A2
-    "ParkRunning3"          32     50      3840    2160    10
-    "CatRobot"              32     60      3840    2160    10
-    "DaylightRoad2"         32     60      3840    2160    10
-    # B
-    "MarketPlace"           32      60      1920    1080    10
-    "BasketballDrive"       32      50      1920    1080    8
-    "BQTerrace"             32      60      1920    1080    8
-    "Cactus"                32      50      1920    1080    8
-    "RitualDance"           32      60      1920    1080    10
-    # C
-    "BasketballDrill"       32      50      832     480     8
-    "BQMall"                32      60      832     480     8
-    "PartyScene"            32      50      832     480     8
-    "RaceHorsesC"           32      30      832     480     8
+    # # # A1
+    # "FoodMarket4"           32     60      3840    2160    10
+    # "Tango2"                32     60      3840    2160    10
+    # "Campfire"              32     30      3840    2160    10
+    # # A2
+    # "ParkRunning3"          32     50      3840    2160    10
+    # "CatRobot"              32     60      3840    2160    10
+    # "DaylightRoad2"         32     60      3840    2160    10
+    # # B
+    # "MarketPlace"           32      60      1920    1080    10
+    # "BasketballDrive"       32      50      1920    1080    8
+    # "BQTerrace"             32      60      1920    1080    8
+    # "Cactus"                32      50      1920    1080    8
+    # "RitualDance"           32      60      1920    1080    10
+    # # C
+    # "BasketballDrill"       32      50      832     480     8
+    # "BQMall"                32      60      832     480     8
+    # "PartyScene"            32      50      832     480     8
+    # "RaceHorsesC"           32      30      832     480     8
     # D
     "BasketballPass"        32     50      416     240     8
-    "BlowingBubbles"        32     50      416     240     8
-    "BQSquare"              32     60      416     240     8
-    "RaceHorses"            32     30      416     240     8
+    # "BlowingBubbles"        32     50      416     240     8
+    # "BQSquare"              32     60      416     240     8
+    # "RaceHorses"            32     30      416     240     8
     # E
     # "FourPeople"            32     60      1280    720     8
     # "Johnny"                32     60      1280    720     8
     # "KristenAndSara"        32     60      1280    720     8
-    # screen content
-    "ArenaOfValor"          32     60      1920    1080    8
-    "SlideEditing"          32     30      1280    720     8
-    "SlideShow"             32     20      1280    720     8
-    "BasketballDrillText"   32     50      832     480     8
+    # # screen content
+    # "ArenaOfValor"          32     60      1920    1080    8
+    # "SlideEditing"          32     30      1280    720     8
+    # "SlideShow"             32     20      1280    720     8
+    # "BasketballDrillText"   32     50      832     480     8
 )
 
 # encoder
@@ -236,12 +236,12 @@ do
         echo "$CSTR_DIR_SUB" >> $CSTR_LOG_RLT_PSNR
 
         # process time
-        ./script/getTime.py ${CSTR_DIR_DST_FUL}${CSTR_CDC}.log >> $CSTR_LOG_RLT_time
+        # ./script/getTime.py ${CSTR_DIR_DST_FUL}${CSTR_CDC}.log >> $CSTR_LOG_RLT_time
         echo "$CSTR_DIR_SUB" >> $CSTR_LOG_RLT_time
     done
 
     # update bd rate
-    ./script/getBdRate.py script/anchor.log $CSTR_LOG_RLT_PSNR > $CSTR_LOG_RLT_BDRT
+    # ./script/getBdRate.py script/anchor.log $CSTR_LOG_RLT_PSNR > $CSTR_LOG_RLT_BDRT
     # uodate enc time
     # chmod +x ./script/getEncTime.py && ./script/getEncTime.py script/anchor_time.log  $CSTR_LOG_RLT_time > $CSTR_LOG_RLT_ENCT
 done

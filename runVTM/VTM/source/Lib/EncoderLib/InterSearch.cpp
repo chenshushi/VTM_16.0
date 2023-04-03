@@ -6220,12 +6220,12 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, CPelBuf *cPatternRoi, I
     Distortion uiDist = std::numeric_limits<Distortion>::max();
     m_cDistParam.cur.buf = m_filteredBlock[0][0][0];
     m_pcRdCost->setDistParam(m_cDistParam, *cStruct.pcPatternKey, m_filteredBlock[0][0][0], preStride, m_lumaClpRng.bd,
-                            COMPONENT_Y, 0,1, false);
+                            COMPONENT_Y, 0,1, true);
     uiDist = m_cDistParam.distFunc(m_cDistParam);
-/*     m_pcRdCost->setCostScale(0);
-    uiDist += m_pcRdCost->getCostOfVectorWithPredictor(iniMvInt.hor, iniMvInt.ver, 0); */
+    m_pcRdCost->setCostScale(0);
+    uiDist += m_pcRdCost->getCostOfVectorWithPredictor(iniMvInt.hor, iniMvInt.ver, 0);
     // set iter times
-    int iIterTime = 1;
+    int iIterTime = 2;
     // for loop : use gradient to update mv
     // get Error Matrix
     const int bufStride     = oriStride;
@@ -6344,11 +6344,11 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, CPelBuf *cPatternRoi, I
       //     printf("\n");
       //   }
       m_pcRdCost->setDistParam(m_cDistParam, *cStruct.pcPatternKey, m_filteredBlock[0][0][0], preStride,
-                                m_lumaClpRng.bd, COMPONENT_Y, 0, 1, false);
+                                m_lumaClpRng.bd, COMPONENT_Y, 0, 1, true);
       Distortion uiCostTemp = m_cDistParam.distFunc(m_cDistParam);
       // printf("\nSecond :   CST_D : %06d \n", (int) uiCostTemp);
-      // m_pcRdCost->setCostScale(0);
-      // uiCostTemp += m_pcRdCost->getCostOfVectorWithPredictor(MvTemp.hor, MvTemp.ver, 0);
+      m_pcRdCost->setCostScale(0);
+      uiCostTemp += m_pcRdCost->getCostOfVectorWithPredictor(MvTemp.hor, MvTemp.ver, 0);
       // printf("\nSecond :   CST_RD : %06d \n", (int) uiCostTemp);
       //xGetPre_fme(MvTemp, cStruct, Pre); // !!!
       // store best cost and mv
