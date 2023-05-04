@@ -189,7 +189,8 @@ protected:
   uint8_t         m_histBestSbt;                        // historical best SBT mode for PU of certain SSE values
   uint8_t         m_histBestMtsIdx;                     // historical best MTS idx  for PU of certain SSE values
   bool            m_clipMvInSubPic;
-
+  // FILE * fp_ptr_ori;
+   FILE * fp_ptr_self;
 public:
   InterSearch();
   virtual ~InterSearch();
@@ -210,7 +211,8 @@ public:
                                     );
 
   void destroy                      ();
-
+  /// sub-function for motion vector refinement used in fractional-pel accuracy
+  void       xgetErrorPred(CPelBuf *pattern, int mvHor, int mvVer);
   void       calcMinDistSbt         ( CodingStructure &cs, const CodingUnit& cu, const uint8_t sbtAllowed );
   uint8_t    skipSbtByRDCost        ( int width, int height, int mtDepth, uint8_t sbtIdx, uint8_t sbtPos, double bestCost, Distortion distSbtOff, double costSbtOff, bool rootCbfSbtOff );
   bool       getSkipSbtAll          ()                 { return m_skipSbtAll; }
@@ -367,42 +369,44 @@ public:
   bool searchBv(PredictionUnit& pu, int xPos, int yPos, int width, int height, int picWidth, int picHeight, int xBv, int yBv, int ctuSize);
   void setClipMvInSubPic(bool flag) { m_clipMvInSubPic = flag; }
 protected:
-
-  /// sub-function for motion vector refinement used in fractional-pel accuracy
+  typedef struct
+  {
+    int left;
+    int right;
+    int top;
+    int bottom;
+  } SearchRange;
+  typedef struct
+  {
+    SearchRange    searchRange;
+    const CPelBuf *pcPatternKey;
+    const Pel *    piRefY;
+    int            iRefStride;
+    int            iBestX;
+    int            iBestY;
+    uint32_t       uiBestRound;
+    uint32_t       uiBestDistance;
+    Distortion     uiBestSad;
+    uint8_t        ucPointNr;
+    int            subShiftMode;
+    unsigned       imvShift;
+    bool           useAltHpelIf;
+    bool           inCtuSearch;
+    bool           zeroMV;
+    Distortion     Cst_Int_Position[2][3][3];
+  } IntTZSearchStruct;
 #if GDR_ENABLED
   Distortion xPatternRefinement(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
                                 const CPelBuf *pcPatternKey, Mv baseRefMv, int iFrac, Mv &rcMvFrac,
-                                bool bAllowUseOfHadamard, Distortion Sad_Int_Position[3][3], bool &rbCleanCandExist);
+                                bool bAllowUseOfHadamard, Distortion Sad_Int_Position[2][3][3], Mv rcMvPred,
+                                IntTZSearchStruct &cStruct, bool &rbCleanCandExist);
 #else
   Distortion  xPatternRefinement    ( const CPelBuf* pcPatternKey, Mv baseRefMv, int iFrac, Mv& rcMvFrac, bool bAllowUseOfHadamard );
 #endif
 
-   typedef struct
-   {
-     int left;
-     int right;
-     int top;
-     int bottom;
-   }SearchRange;
 
-  typedef struct
-  {
-    SearchRange searchRange;
-    const CPelBuf* pcPatternKey;
-    const Pel*  piRefY;
-    int         iRefStride;
-    int         iBestX;
-    int         iBestY;
-    uint32_t        uiBestRound;
-    uint32_t        uiBestDistance;
-    Distortion  uiBestSad;
-    uint8_t       ucPointNr;
-    int         subShiftMode;
-    unsigned    imvShift;
-    bool        useAltHpelIf;
-    bool        inCtuSearch;
-    bool        zeroMV;
-  } IntTZSearchStruct;
+
+
 
   // sub-functions for ME
   inline void xTZSearchHelp         ( IntTZSearchStruct& rcStruct, const int iSearchX, const int iSearchY, const uint8_t ucPointNr, const uint32_t uiDistance );
@@ -524,7 +528,7 @@ protected:
   void xPatternSearch             ( IntTZSearchStruct&    cStruct,
                                     Mv&                   rcMv,
                                     Distortion&           ruiSAD, 
-                                    Distortion Sad_Int_Position[3][3]
+                                    Distortion Sad_Int_Position[2][3][3]
                                   );
 
   void xPatternSearchIntRefine(PredictionUnit &pu, IntTZSearchStruct &cStruct, Mv &rcMv, Mv &rcMvPred, int &riMVPIdx,
@@ -537,7 +541,7 @@ protected:
 
   void xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx, IntTZSearchStruct &cStruct,
                              const Mv &rcMvInt, Mv &rcMvHalf, Mv &rcMvQter, Distortion &ruiCost,
-                                    Distortion Sad_Int_Position[3][3]
+                                    Distortion Sad_Int_Position[2][3][3], Mv rcMvPred
 #if GDR_ENABLED
                              ,
                              bool &rbCleanCandExist

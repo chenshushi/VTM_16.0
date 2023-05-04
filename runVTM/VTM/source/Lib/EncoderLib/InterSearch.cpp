@@ -1,4 +1,4 @@
-/* The copyright in this software is being made available under the BSD
+﻿/* The copyright in this software is being made available under the BSD
  * License, included below. This software may be subject to other third party
  * and contributor rights, including patent rights, and no such rights are
  * granted under this license.
@@ -66,8 +66,8 @@ static const Mv s_acMvRefineH[9] =
   Mv( -1,  0 ), // 3
   Mv(  1,  0 ), // 4
   Mv( -1, -1 ), // 5
-  Mv( -1,  1 ), // 6
-  Mv(  1, -1 ), // 7
+  Mv(  1, -1 ), // 6
+  Mv( -1,  1 ), // 7
   Mv(  1,  1 )  // 8
 };
 
@@ -733,11 +733,73 @@ inline void InterSearch::xTZ8PointDiamondSearch( IntTZSearchStruct& rcStruct,
     } // iDist <= 8
   } // iDist == 1
 }
+/**
+ * \brief Generate pred interpolated blocks for error_surface
+ *
+ * \param pattern    Reference picture
+ */
+void InterSearch::xgetErrorPred(CPelBuf *pattern, int mvHor, int mvVer)
+{
+  const ClpRng &clpRng    = m_lumaClpRng;
+  int           width     = pattern->width;
+  int           height    = pattern->height;
+  int           srcStride = pattern->stride;
+
+  int        intStride = width + 1;
+  int        dstStride = width + 1;
+  Pel *      intPtr;
+  Pel *      dstPtr;
+  int        filterSize     = NTAPS_LUMA;
+  int        halfFilterSize = (filterSize >> 1);
+  const Pel *srcPtr         = pattern->buf - halfFilterSize * srcStride - 1;
+  // Offset
+  // printf("\nREF:\n");
+  // for (int j = 0; j < 16; j++)
+  // {
+  //   for (int i = 0; i < 16; i++)
+  //   {
+  //     printf("%03d ", *(srcPtr + j * srcStride + i));
+  //   }
+  //   printf("\n");
+  // }
+  int offset_Hor = mvHor < 0 ? 0 : 1;
+  if (mvHor == 4)
+    offset_Hor = offset_Hor + 1;
+  int offset_Ver = mvVer < 0 ? -1 : 0;
+  if (mvVer == 4)
+    offset_Ver = offset_Ver + 1;
+  m_if.filterHor(COMPONENT_Y, srcPtr, srcStride, m_filteredBlockTmp[0][0], intStride, width + 1, height + filterSize,
+                 (mvHor & 3) << MV_FRACTIONAL_BITS_DIFF, false, clpRng, 0, false, false);
+  intPtr = m_filteredBlockTmp[0][0] + (halfFilterSize + offset_Ver) * intStride + offset_Hor;
+  //  printf("\nINTER:\n");
+  //  for (int j = 0; j < 16; j++)
+  // {
+  //   for (int i = 0; i < 16; i++)
+  //   {
+  //     printf("%03d ", *(intPtr + j * intStride + i));
+  //   }
+  //   printf("\n");
+  // }
+  dstPtr = m_filteredBlock[0][0][0];
+  m_if.filterVer(COMPONENT_Y, intPtr, intStride, dstPtr, dstStride, width + 0, height + 0,
+                 (mvVer & 3) << MV_FRACTIONAL_BITS_DIFF, false, true, clpRng, 0, false, false);
+  // printf("\nPre:  MV ( %d , %d ) \n", mvHor, mvVer);
+  // for (int j = 0; j < 16; j++)
+  // {
+  //   for (int i = 0; i < 16; i++)
+  //   {
+  //     printf("%03d ", *(m_filteredBlock[0][0][0] + j * dstStride + i));
+  //   }
+  //   printf("\n");
+  // }
+}
 #if GDR_ENABLED
 Distortion InterSearch::xPatternRefinement(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
                                            const CPelBuf *pcPatternKey, Mv baseRefMv, int iFrac, Mv &rcMvFrac,
                                            bool bAllowUseOfHadamard,
-                                           Distortion Cst_Int_Position[3][3],
+                                           Distortion Cst_Int_Position[2][3][3],
+                                           Mv rcMvPred,
+                                           IntTZSearchStruct &cStruct,
                                            bool &rbCleanCandExist)
 #else
 
@@ -751,6 +813,9 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
   Distortion distBest   = std::numeric_limits<Distortion>::max();
   // uint32_t   directBest = 0;
   Distortion  datCstNei[9];
+  int             Pos_num  = 1;
+  Distortion      Cst_tmp[2] = {(std::numeric_limits<Distortion>::max()),std::numeric_limits<Distortion>::max()};
+  Distortion      Cst_bst = std::numeric_limits<Distortion>::max();
   Mv              Fnl_mv;
   int             dlt_x;
   int             dlt_y;
@@ -762,58 +827,154 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
   bool                   distBestOk       = false;
   bool allOk = true;
 #endif
-  // Pel*  piRefPos;
+  Pel*  piRefPos;
   int iRefStride = pcPatternKey->width + 1;
   m_pcRdCost->setDistParam( m_cDistParam, *pcPatternKey, m_filteredBlock[0][0][0], iRefStride, m_lumaClpRng.bd, COMPONENT_Y, 0, 1, m_pcEncCfg->getUseHADME() && bAllowUseOfHadamard );
 
-  const Mv* pcMvRefine = (iFrac == 2 ? s_acMvRefineH : s_acMvRefineQ);
+ // const Mv* pcMvRefine = s_acMvRefineH;
   Mv        cMvTest;
   int      iFrac_flg;
-      {
-// add for Error Surface-----------------------------------------------------------------------------------------
-#define FUNC_CLP(datMin, datMax, dat) (((dat) < (datMin)) ? (datMin) : (((dat) > (datMax)) ? (datMax) : (dat)))
-    // sovle ime error surface equation.
-
-    for (int j = 0; j < 3; j++)
-    {
-      for (int i = 0; i < 3; i++)
-      {
-        datCstNei[j * 3 + i] = Cst_Int_Position[j][i]
-          + m_pcRdCost->getCostOfVectorWithPredictor(rcMvFrac.getHor() + pcMvRefine[j * 3 + i].getHor() * iFrac,
-                                                     rcMvFrac.getVer() + pcMvRefine[j * 3 + i].getVer() * iFrac, 0);
+  //int weight[3][3] = {{6,10,6},{6,20,6},{6,10,6}};
+  // add for Error Surface-----------------------------------------------------------------------------------------
+  #define FUNC_CLP(datMin, datMax, dat) (((dat) < (datMin)) ? (datMin) : (((dat) > (datMax)) ? (datMax) : (dat)))
+  {
+    // int height = pcPatternKey->height;
+    // int width  = pcPatternKey->width;
+    // double gauss_numerator;
+    // double gauss_denominator = 2 * height * width;
+    // double gauss_weight;
+    for (int Pos_test = 0; Pos_test < Pos_num; Pos_test++ ) {
+      // get mv and mvp
+      if (Pos_test == 0) {
+        cMvTest = rcMvFrac;
       }
-    }
-    int A = int(4 * datCstNei[5] - 8 * datCstNei[1] + 4 * datCstNei[7] + 4 * datCstNei[3] - 8 * datCstNei[0]
-                + 4 * datCstNei[4] + 4 * datCstNei[6] - 8 * datCstNei[2] + 4 * datCstNei[8]);
-    int B = int(4 * datCstNei[5] + 4 * datCstNei[1] + 4 * datCstNei[7] - 8 * datCstNei[3] - 8 * datCstNei[0]
-                - 8 * datCstNei[4] + 4 * datCstNei[6] + 4 * datCstNei[2] + 4 * datCstNei[8]);
-    int C = int(6 * datCstNei[5] - 6 * datCstNei[7] - 6 * datCstNei[6] + 6 * datCstNei[8]);
-    int D = int(-4 * datCstNei[5] + 4 * datCstNei[7] - 4 * datCstNei[3] + 4 * datCstNei[4] - 4 * datCstNei[6]
-                + 4 * datCstNei[8]);
-    int E = int(-4 * datCstNei[5] - 4 * datCstNei[1] - 4 * datCstNei[7] + 4 * datCstNei[6] + 4 * datCstNei[2]
-                + 4 * datCstNei[8]);
+      else {
+        Mv cMvTmp = rcMvPred;
+        cMvTmp.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_INT);
+        cMvTmp.changePrecision(MV_PRECISION_INT, MV_PRECISION_QUARTER);
+        cMvTest.setHor(cMvTmp.getHor());
+        cMvTest.setVer(cMvTmp.getVer());
+      }
+      // sovle ime error surface equation.
+      for (int j = 0; j < 3; j++) {
+        for (int i = 0; i < 3; i++) {
+          // gauss_numerator  = (abs(j - 1) + height / 2) * (abs(j - 1) + height / 2) + (abs(i - 1) +  width / 2) * (abs(i - 1) + width / 2);
+          // gauss_weight    = exp(-gauss_numerator / gauss_denominator);
+          //datCstNei[j * 3 + i] = (cStruct.Cst_Int_Position[Pos_test][j][i] * weight[j][i] + m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) );
 
-    // overflow protection
-    int datSft = 4;
-    A          = (A > 0 ? 1 : -1) * ((abs(A) + (1 << (datSft - 1))) >> datSft);
-    B          = (B > 0 ? 1 : -1) * ((abs(B) + (1 << (datSft - 1))) >> datSft);
-    C          = (C > 0 ? 1 : -1) * ((abs(C) + (1 << (datSft - 1))) >> datSft);
-    D          = (D > 0 ? 1 : -1) * ((abs(D) + (1 << (datSft - 1))) >> datSft);
-    E          = (E > 0 ? 1 : -1) * ((abs(E) + (1 << (datSft - 1))) >> datSft);
-
-    // get fmv, division and the following quant could be replace with compare.
-    float xmin        = 0.0;
-    float ymin        = 0.0;
-    int   denominator = C * C - 4 * A * B;
-    if (denominator != 0)
-    {
-      xmin = FUNC_CLP(-1, 1, float(2 * B * D - C * E) / denominator);
-      ymin = FUNC_CLP(-1, 1, float(2 * A * E - C * D) / denominator);
-    }
+          datCstNei[j * 3 + i] = (cStruct.Cst_Int_Position[Pos_test][j][i] + m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) );
+        }
+      }
+      int A = int(  4 * datCstNei[0]  - 8 * datCstNei[1]    + 4 * datCstNei[2] 
+                  + 4 * datCstNei[3]  - 8 * datCstNei[4]    + 4 * datCstNei[5] 
+                  + 4 * datCstNei[6]  - 8 * datCstNei[7]    + 4 * datCstNei[8]  );
+      int B = int(  4 * datCstNei[0]  + 4 * datCstNei[1]    + 4 * datCstNei[2] 
+                  - 8 * datCstNei[3]  - 8 * datCstNei[4]    - 8 * datCstNei[5] 
+                  + 4 * datCstNei[6]  + 4 * datCstNei[7]    + 4 * datCstNei[8]  );
+      int C = int(  6 * datCstNei[0]                        - 6 * datCstNei[2]    
+                  
+                  - 6 * datCstNei[6]                        + 6 * datCstNei[8]);
+      int D = int(- 4 * datCstNei[0]                        + 4 * datCstNei[2]  
+                  - 4 * datCstNei[3]                        + 4 * datCstNei[5] 
+                  - 4 * datCstNei[6]                        + 4 * datCstNei[8]);
+      int E = int(- 4 * datCstNei[0]  - 4 * datCstNei[1]    - 4 * datCstNei[2] 
+      
+                  + 4 * datCstNei[6]  + 4 * datCstNei[7]    + 4 * datCstNei[8]);
+                
+        // overflow protection
+        int datSft = 4;
+        A          = (A > 0 ? 1 : -1) * ((abs(A) + (1 << (datSft - 1))) >> datSft);
+        B          = (B > 0 ? 1 : -1) * ((abs(B) + (1 << (datSft - 1))) >> datSft);
+        C          = (C > 0 ? 1 : -1) * ((abs(C) + (1 << (datSft - 1))) >> datSft);
+        D          = (D > 0 ? 1 : -1) * ((abs(D) + (1 << (datSft - 1))) >> datSft);
+        E          = (E > 0 ? 1 : -1) * ((abs(E) + (1 << (datSft - 1))) >> datSft);
     
-    dlt_x = int(xmin * 4 + (xmin > 0 ? 0.5 : -0.5));
-    dlt_y = int(ymin * 4 + (ymin > 0 ? 0.5 : -0.5));
-    if (((dlt_x == 2) || (dlt_x == -2)) && ((dlt_y == 2) || (dlt_y == -2)))
+        // get fmv, division and the following quant could be replace with compare.
+        float xmin        = 0.0;
+        float ymin        = 0.0;
+        int   denominator = C * C - 4 * A * B;
+        if (denominator != 0)
+        {
+          xmin = FUNC_CLP(-0.75, 0.75, float(2 * B * D - C * E) / denominator);
+          ymin = FUNC_CLP(-0.75, 0.75, float(2 * A * E - C * D) / denominator);
+        }
+
+
+        // adjust the fmv
+        // {
+        //   int tmp_x,tmp_y;
+        //   tmp_x = int(xmin * 16 + (xmin > 0 ? 0.5 : -0.5));
+        //   tmp_y = int(ymin * 16 + (ymin > 0 ? 0.5 : -0.5));
+        //   // best  idx : 00 01 02 03 04 05 06 07 08 09 10 11 12 
+        //   // int mv_x[13] = {0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3};
+        //   // int mv_y[13] = {0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3};
+
+        //    // not best  idx : 00 01 02 03 04 05 06 07 08 09 10 11 12 
+        //   // int mv_x[13] = {0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3};
+        //   // int mv_y[13] = {0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3};
+        // //    // i don't know  idx : 00 01 02 03 04 05 06 07 08 09 10 11 12 
+        //   // int mv_x[13] = {0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 2, 3};
+        //   // int mv_y[13] = {0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 2, 3};
+        //   if (tmp_x > 0) {
+        //     dlt_x = mv_x[tmp_x];
+        //   } 
+        //   else {
+        //     dlt_x = -mv_x[-tmp_x];
+        //   }
+        //   if (tmp_y > 0) {
+        //     dlt_y = mv_y[tmp_y];
+        //   } 
+        //   else {
+        //     dlt_y = -mv_y[-tmp_y];
+        //   } 
+        // }
+
+        dlt_x = int(xmin * 4 + (xmin > 0 ? 0.5 : -0.5));
+        dlt_y = int(ymin * 4 + (ymin > 0 ? 0.5 : -0.5));
+
+        Fnl_mv.set(cMvTest.getHor() + dlt_x, cMvTest.getVer() + dlt_y);
+
+        if (Pos_test == 1) {
+          Mv       tmp   = rcMvPred;
+          tmp.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+          dlt_x = tmp.getHor() - cMvTest.getHor();
+          dlt_y = tmp.getVer() - cMvTest.getVer();
+          if (dlt_x < -4){
+            dlt_x = -4;
+          }
+          if (dlt_x > 4){
+            dlt_x = 4;
+          }
+          if (dlt_y < -4){
+            dlt_y = -4;
+          }
+          if (dlt_y > 4){
+            dlt_y = 4;
+          }
+        }
+        // interpolate and calculate SATD
+        int     offset = (cMvTest.getHor()>> 2) + (cMvTest.getVer() >> 2) * cStruct.iRefStride;
+        CPelBuf cPatternRoiforerror(cStruct.piRefY + offset, cStruct.iRefStride, *cStruct.pcPatternKey);
+        // get Pre (for D)
+        xgetErrorPred(&cPatternRoiforerror, dlt_x, dlt_y);
+
+        piRefPos = m_filteredBlock[0][0][0];
+        // get Cst
+        m_cDistParam.cur.buf   = piRefPos;
+        Cst_tmp[Pos_test] = m_cDistParam.distFunc( m_cDistParam );
+        // !!! TODO ： here 2 is mvshift, need to be test further
+        Cst_tmp[Pos_test] += m_pcRdCost->getCostOfVectorWithPredictor( cMvTest.getHor() + dlt_x, cMvTest.getVer() + dlt_y, 0 );
+        // get best result
+        if (Cst_tmp[Pos_test] < Cst_bst){
+          // printf("idx : %d\tcur_cst : %lu\tbest_cst : %lu\n",Pos_test,Cst_tmp[Pos_test], (Cst_bst));
+          // printf("best_MV(%d,%d)\n\n",dlt_x,dlt_y);
+          Cst_bst = Cst_tmp[Pos_test];
+          Fnl_mv.setHor(cMvTest.getHor() + dlt_x);
+          Fnl_mv.setVer(cMvTest.getVer() + dlt_y);
+        }
+    }
+    // post process
+    if (((Fnl_mv.getHor() == 2) || (Fnl_mv.getHor() == -2)) && ((Fnl_mv.getVer() == 2) || (Fnl_mv.getVer() == -2)))
     {
       iFrac_flg = int(MV_PRECISION_HALF);
     }
@@ -821,13 +982,13 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
     {
       iFrac_flg = int(MV_PRECISION_QUARTER);
     }
-    cMvTest.set(rcMvFrac.getHor() + dlt_x, rcMvFrac.getVer() + dlt_y);
+    cMvTest.set(Fnl_mv.getHor(), Fnl_mv.getVer());  
     if (m_skipFracME)
     {
       cMvTest.set(rcMvFrac.getHor(), rcMvFrac.getVer());
     }
-    //--------------------------------------------------------------------------------------------------------------------------
   }
+  //--------------------------------------------------------------------------------------------------------------------------
 #if GDR_ENABLED
   if (isEncodeGdrClean)
   {
@@ -860,7 +1021,7 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
 
 
     // m_cDistParam.cur.buf   = piRefPos;
-    dist                   =datCstNei[4]; // m_cDistParam.distFunc(m_cDistParam);
+    dist                   = Cst_bst; // m_cDistParam.distFunc(m_cDistParam);
     dist += m_pcRdCost->getCostOfVectorWithPredictor(cMvTest.getHor(), cMvTest.getVer(), 0);
 
 #if GDR_ENABLED
@@ -909,20 +1070,7 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
     }
 #endif
   }
-  Fnl_mv   = Mv(dlt_x, dlt_y);
-  //if (dlt_x == -1 || dlt_x == -3)
-  //  dlt_x = -2;
-  //else if (dlt_x == 1 || dlt_x == 3)
-  //  dlt_x = 2;
-  //else
-  //  dlt_x = dlt_x;
-
-  //if (dlt_y == -1 || dlt_y == -3)
-  //  dlt_y = -2;
-  //else if (dlt_y == 1 || dlt_y == 3)
-  //  dlt_y = 2;
-  //else
-  //  dlt_y = dlt_y;
+  // Fnl_mv   = Mv(dlt_x, dlt_y);
   rcMvFrac = Fnl_mv;   //  pcMvRefine[directBest];
   return distBest;
 }
@@ -5003,8 +5151,8 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
   PelUnitBuf  origBufTmp = m_tmpStorageLCU.getBuf( UnitAreaRelative(*pu.cu, pu) );
   PelUnitBuf* pBuf       = &origBuf;
   // add for Error SurFace
-  Distortion  Cst_Int_Position[3][3];
-
+  Distortion  Cst_Int_Position[2][3][3];
+  Mv         bestMv;
   if(bBi) // Bi-predictive ME
   {
     // NOTE: Other buf contains predicted signal from another direction
@@ -5022,7 +5170,19 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
   //  Search key pattern initialization
   CPelBuf  tmpPattern   = pBuf->Y();
   CPelBuf* pcPatternKey = &tmpPattern;
-
+    // if((tmpPattern.width == 4 && tmpPattern.height == 8) ||
+    //    (tmpPattern.width == 8 && tmpPattern.height == 4) ||
+    //    (tmpPattern.width == 8 && tmpPattern.height == 16) ||
+    //    (tmpPattern.width == 16 && tmpPattern.height == 8) ||
+    //    (tmpPattern.width == 16 && tmpPattern.height == 32) ||
+    //    (tmpPattern.width == 32 && tmpPattern.height == 16) ||
+    //    (tmpPattern.width == 32 && tmpPattern.height == 64) ||
+    //    (tmpPattern.width == 64 && tmpPattern.height == 32) ||
+    //    (tmpPattern.width == 64 && tmpPattern.height == 128) ||
+    //    (tmpPattern.width == 128 && tmpPattern.height == 64)
+    //   ) {
+    // return;
+    // }
   m_lumaClpRng = pu.cs->slice->clpRng( COMPONENT_Y );
 
   bool    wrap = pu.cu->slice->getRefPic(eRefPicList, refIdxPred)->isWrapAroundEnabled(pu.cs->pps);
@@ -5078,7 +5238,7 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
 
     Mv bestInitMv = (bBi ? rcMv : rcMvPred);
     Mv cTmpMv = bestInitMv;
-
+   
     clipMv( cTmpMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps );
     cTmpMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_INT);
     m_cDistParam.cur.buf = cStruct.piRefY + (cTmpMv.ver * cStruct.iRefStride) + cTmpMv.hor;
@@ -5121,6 +5281,7 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
     if( !bQTBTMV )
     {
 #if GDR_ENABLED
+      bestMv = bestInitMv;
       xSetSearchRange(pu, bestInitMv, iSrchRng, cStruct.searchRange, cStruct, eRefPicList, refIdxPred);
 #else
       xSetSearchRange(pu, bestInitMv, iSrchRng, cStruct.searchRange, cStruct);
@@ -5171,14 +5332,19 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
       }
     }
 #if GDR_ENABLED
-    xPatternSearchFracDIF(pu, eRefPicList, refIdxPred, cStruct, rcMv, cMvHalf, cMvQter, ruiCost, &(*Cst_Int_Position), rbCleanCandExist);
+    xPatternSearchFracDIF(pu, eRefPicList, refIdxPred, cStruct, rcMv, cMvHalf, cMvQter, ruiCost, &(*Cst_Int_Position),
+                          bestMv, rbCleanCandExist);
 #else
     xPatternSearchFracDIF(pu, eRefPicList, refIdxPred, cStruct, rcMv, cMvHalf, cMvQter, ruiCost);
 #endif
     m_pcRdCost->setCostScale( 0 );
-    rcMv <<= 2;
-    // rcMv  += cMvHalf;
-    rcMv  += cMvQter;
+   //  rcMv <<= 2;
+    // rcMv  += cMvQter;
+    
+    // !!! add for MVP
+    rcMv = cMvQter;
+    // printf("final_MV(%d,%d)\n\n", cMvQter.hor, cMvQter.ver);
+    // cMvQter.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
     uint32_t uiMvBits = m_pcRdCost->getBitsOfVectorWithPredictor( rcMv.getHor(), rcMv.getVer(), cStruct.imvShift );
     ruiBits += uiMvBits;
     ruiCost = ( Distortion ) ( floor( fWeight * ( ( double ) ruiCost - ( double ) m_pcRdCost->getCost( uiMvBits ) ) ) + ( double ) m_pcRdCost->getCost( ruiBits ) );
@@ -5315,7 +5481,7 @@ void InterSearch::xSetSearchRange(const PredictionUnit &pu, const Mv &cMvPred, c
 void InterSearch::xPatternSearch( IntTZSearchStruct&    cStruct,
                                   Mv&            rcMv,
                                   Distortion&    ruiSAD,
-                                  Distortion Cst_Int_Position[3][3] )
+                                  Distortion Cst_Int_Position[2][3][3] )
 {
   Distortion  uiSad;
   Distortion  uiSadBest = std::numeric_limits<Distortion>::max();
@@ -5364,44 +5530,77 @@ void InterSearch::xPatternSearch( IntTZSearchStruct&    cStruct,
    if ((-64 < iBestX) && (iBestX < 64) && (-64 < iBestY) && (iBestY < 64)) {
      // add SATD CST
     #ifdef error_surface_SATD
-     const Pel *piRef = cStruct.piRefY + (sr.top * cStruct.iRefStride);
+    // !!! In int pxel precision, MVP position (X, Y) should be (sr.left + sr.right, sr.top + sr.bottom)
+     const Pel *piRef_int = cStruct.piRefY + (sr.top * cStruct.iRefStride);
 
      for (int y = -1; y <= 1; y++)
      {
        for (int x = -1; x <= 1; x++)
        {
          //  find min. distortion position
-         test_DistParam.cur.buf = piRef + cStruct.iRefStride * (iBestY - sr.top + y) + iBestX + x;
-         Cst_Int_Position[y + 1][x + 1] = test_DistParam.distFunc(test_DistParam);
-         Cst_Int_Position[y + 1][x + 1] += m_pcRdCost->getCostOfVectorWithPredictor((iBestX - sr.left + x), (iBestY - sr.top + y), cStruct.imvShift);
+         test_DistParam.cur.buf = piRef_int + cStruct.iRefStride * (iBestY - sr.top + y) + iBestX + x;
+         Cst_Int_Position[0][y + 1][x + 1] = test_DistParam.distFunc(test_DistParam);
+         // Cst_Int_Position[0][y + 1][x + 1] += m_pcRdCost->getCostOfVectorWithPredictor((iBestX + x), (iBestY + y), cStruct.imvShift);
        }
       }
+           // MVP position
+     const Pel *piRef_mvp = cStruct.piRefY + (sr.top * cStruct.iRefStride);
+     for (int y = -1; y <= 1; y++)
+     {
+       for (int x = -1; x <= 1; x++)
+       {
+         //  find min. distortion position
+         test_DistParam.cur.buf            = piRef_mvp + cStruct.iRefStride * (int ((sr.top + sr.bottom) /2) - sr.top + y) + int ((sr.left + sr.right)/2) + x;
+         Cst_Int_Position[1][y + 1][x + 1] = test_DistParam.distFunc(test_DistParam);
+        // Cst_Int_Position[1][y + 1][x + 1] += m_pcRdCost->getCostOfVectorWithPredictor((0  + x + sr.left + sr.right), (0  + y +  sr.top + sr.bottom), cStruct.imvShift);
+       }
+     }
     #endif
+   // printf("!!! IMV : (%d, %d)\tMVP : (%d, %d)\n",iBestX*4,iBestY*4,(sr.left + sr.right) / 2*4, (sr.top + sr.bottom) / 2*4);
      // add SAD CST
     #ifdef error_surface_SAD
-    Cst_Int_Position[0][0] = Sad_Buffer[iBestY - sr.top - 1][iBestX - sr.left - 1];
-    Cst_Int_Position[0][1] = Sad_Buffer[iBestY - sr.top - 1][iBestX - sr.left + 0];
-    Cst_Int_Position[0][2] = Sad_Buffer[iBestY - sr.top - 1][iBestX - sr.left + 1];
-    Cst_Int_Position[1][0] = Sad_Buffer[iBestY - sr.top + 0][iBestX - sr.left - 1];
-    Cst_Int_Position[1][1] = Sad_Buffer[iBestY - sr.top + 0][iBestX - sr.left + 0];
-    Cst_Int_Position[1][2] = Sad_Buffer[iBestY - sr.top + 0][iBestX - sr.left + 1];
-    Cst_Int_Position[2][0] = Sad_Buffer[iBestY - sr.top + 1][iBestX - sr.left - 1];
-    Cst_Int_Position[2][1] = Sad_Buffer[iBestY - sr.top + 1][iBestX - sr.left + 0];
-    Cst_Int_Position[2][2] = Sad_Buffer[iBestY - sr.top + 1][iBestX - sr.left + 1];
+    // !!! In int pxel precision, MVP position (X, Y) should be (sr.left + sr.right, sr.top + sr.bottom)
+    Cst_Int_Position[0][0][0] = Sad_Buffer[iBestY - sr.top    - 1][iBestX - sr.left  - 1];
+    Cst_Int_Position[0][0][1] = Sad_Buffer[iBestY - sr.top    - 1][iBestX - sr.left  + 0];
+    Cst_Int_Position[0][0][2] = Sad_Buffer[iBestY - sr.top    - 1][iBestX - sr.left  + 1];
+    Cst_Int_Position[0][1][0] = Sad_Buffer[iBestY - sr.top    + 0][iBestX - sr.left  - 1];
+    Cst_Int_Position[0][1][1] = Sad_Buffer[iBestY - sr.top    + 0][iBestX - sr.left  + 0];
+    Cst_Int_Position[0][1][2] = Sad_Buffer[iBestY - sr.top    + 0][iBestX - sr.left  + 1];
+    Cst_Int_Position[0][2][0] = Sad_Buffer[iBestY - sr.top    + 1][iBestX - sr.left  - 1];
+    Cst_Int_Position[0][2][1] = Sad_Buffer[iBestY - sr.top    + 1][iBestX - sr.left  + 0];
+    Cst_Int_Position[0][2][2] = Sad_Buffer[iBestY - sr.top    + 1][iBestX - sr.left  + 1];
+    Cst_Int_Position[1][0][0] = Sad_Buffer[0      + sr.bottom - 1][0      + sr.right - 1];
+    Cst_Int_Position[1][0][1] = Sad_Buffer[0      + sr.bottom - 1][0      + sr.right + 0];
+    Cst_Int_Position[1][0][2] = Sad_Buffer[0      + sr.bottom - 1][0      + sr.right + 1];
+    Cst_Int_Position[1][1][0] = Sad_Buffer[0      + sr.bottom + 0][0      + sr.right - 1];
+    Cst_Int_Position[1][1][1] = Sad_Buffer[0      + sr.bottom + 0][0      + sr.right + 0];
+    Cst_Int_Position[1][1][2] = Sad_Buffer[0      + sr.bottom + 0][0      + sr.right + 1];
+    Cst_Int_Position[1][2][0] = Sad_Buffer[0      + sr.bottom + 1][0      + sr.right - 1];
+    Cst_Int_Position[1][2][1] = Sad_Buffer[0      + sr.bottom + 1][0      + sr.right + 0];
+    Cst_Int_Position[1][2][2] = Sad_Buffer[0      + sr.bottom + 1][0      + sr.right + 1];
     #endif
 
    }
    else
    {
-     Cst_Int_Position[0][0] = uiSadBest;
-     Cst_Int_Position[0][1] = uiSadBest;
-     Cst_Int_Position[0][2] = uiSadBest;
-     Cst_Int_Position[1][0] = uiSadBest;
-     Cst_Int_Position[1][1] = uiSadBest;
-     Cst_Int_Position[1][2] = uiSadBest;
-     Cst_Int_Position[2][0] = uiSadBest;
-     Cst_Int_Position[2][1] = uiSadBest;
-     Cst_Int_Position[2][2] = uiSadBest;
+     Cst_Int_Position[0][0][0] = uiSadBest;
+     Cst_Int_Position[0][0][1] = uiSadBest;
+     Cst_Int_Position[0][0][2] = uiSadBest;
+     Cst_Int_Position[0][1][0] = uiSadBest;
+     Cst_Int_Position[0][1][1] = uiSadBest;
+     Cst_Int_Position[0][1][2] = uiSadBest;
+     Cst_Int_Position[0][2][0] = uiSadBest;
+     Cst_Int_Position[0][2][1] = uiSadBest;
+     Cst_Int_Position[0][2][2] = uiSadBest;
+     Cst_Int_Position[1][0][0] = uiSadBest;
+     Cst_Int_Position[1][0][1] = uiSadBest;
+     Cst_Int_Position[1][0][2] = uiSadBest;
+     Cst_Int_Position[1][1][0] = uiSadBest;
+     Cst_Int_Position[1][1][1] = uiSadBest;
+     Cst_Int_Position[1][1][2] = uiSadBest;
+     Cst_Int_Position[1][2][0] = uiSadBest;
+     Cst_Int_Position[1][2][1] = uiSadBest;
+     Cst_Int_Position[1][2][2] = uiSadBest;
    }
   cStruct.uiBestSad = uiSadBest; // th for testing
   ruiSAD = uiSadBest - m_pcRdCost->getCostOfVectorWithPredictor( iBestX, iBestY, cStruct.imvShift );
@@ -5804,6 +6003,41 @@ void InterSearch::xTZSearch(const PredictionUnit &pu, RefPicList eRefPicList, in
   // write out best match
   rcMv.set( cStruct.iBestX, cStruct.iBestY );
   ruiSAD = cStruct.uiBestSad - m_pcRdCost->getCostOfVectorWithPredictor( cStruct.iBestX, cStruct.iBestY, cStruct.imvShift );
+    #ifdef error_surface_SATD
+   DistParam          test_DistParam = m_cDistParam;
+   m_pcRdCost->setDistParam(test_DistParam, *cStruct.pcPatternKey, cStruct.piRefY, cStruct.iRefStride, m_lumaClpRng.bd,COMPONENT_Y, cStruct.subShiftMode, 1, true);
+  #endif
+  #ifdef error_surface_SAD
+   DistParam          test_DistParam = m_cDistParam;
+  #endif
+    if ((cStruct.searchRange.left < cStruct.iBestX) && (cStruct.iBestX < cStruct.searchRange.right)
+      && (cStruct.searchRange.top < cStruct.iBestY) && (cStruct.iBestY < cStruct.searchRange.bottom))
+  {
+    // !!! In int pxel precision, MVP position (X, Y) should be (sr.left + sr.right, sr.top + sr.bottom)
+    const Pel *piRef_int = cStruct.piRefY + (cStruct.iBestY * cStruct.iRefStride) + cStruct.iBestX;
+    for (int y = -1; y <= 1; y++)
+    {
+      for (int x = -1; x <= 1; x++)
+      {
+        //  find min. distortion position
+        test_DistParam.cur.buf                      = piRef_int + cStruct.iRefStride * y + x;
+        cStruct.Cst_Int_Position[0][y + 1][x + 1] = test_DistParam.distFunc(test_DistParam);
+      }
+    }
+
+    const Pel *piRef_mvp = cStruct.piRefY + (cStruct.searchRange.top * cStruct.iRefStride);
+    for (int y = -1; y <= 1; y++)
+    {
+      for (int x = -1; x <= 1; x++)
+      {
+        //  find min. distortion position
+        test_DistParam.cur.buf = piRef_mvp
+          + cStruct.iRefStride * (int((cStruct.searchRange.top + cStruct.searchRange.bottom) / 2) - cStruct.searchRange.top + y)
+          + int((cStruct.searchRange.left + cStruct.searchRange.right) / 2) + x;
+        cStruct.Cst_Int_Position[1][y + 1][x + 1] = test_DistParam.distFunc(test_DistParam);
+      }
+    }
+  }
 }
 
 void InterSearch::xTZSearchSelective(const PredictionUnit &pu, RefPicList eRefPicList, int refIdxPred,
@@ -6161,7 +6395,7 @@ void InterSearch::xPatternSearchIntRefine(PredictionUnit& pu, IntTZSearchStruct&
 void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
                                         IntTZSearchStruct &cStruct, const Mv &rcMvInt, Mv &rcMvHalf, Mv &rcMvQter,
                                         Distortion &ruiCost,
-                                        Distortion  Cst_Int_Position[3][3]
+                                        Distortion  Cst_Int_Position[2][3][3], Mv rcMvPred
 #if GDR_ENABLED
                                         ,
                                         bool &rbCleanCandExist
@@ -6172,6 +6406,7 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
   //  Reference pattern initialization (integer scale)
   int     offset = rcMvInt.getHor() + rcMvInt.getVer() * cStruct.iRefStride;
   CPelBuf cPatternRoi(cStruct.piRefY + offset, cStruct.iRefStride, *cStruct.pcPatternKey);
+  //CPelBuf cPatternRoiforerror(cStruct.piRefY + offset, cStruct.iRefStride, *cStruct.pcPatternKey);
   if (m_skipFracME)
   {
     Mv baseRefMv(0, 0);
@@ -6179,9 +6414,11 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
     m_pcRdCost->setCostScale(0);
     xExtDIFUpSamplingH(&cPatternRoi, cStruct.useAltHpelIf);
     rcMvQter = rcMvInt;   rcMvQter <<= 2;    // for mv-cost
+    assert(0);
 #if GDR_ENABLED
     ruiCost = xPatternRefinement(pu, eRefPicList, refIdx, cStruct.pcPatternKey, baseRefMv, 1, rcMvQter,
-                                 !pu.cs->slice->getDisableSATDForRD(), Cst_Int_Position, rbCleanCandExist);
+                         !pu.cs->slice->getDisableSATDForRD(), Cst_Int_Position, rcMvPred, cStruct,
+                                 rbCleanCandExist);
 #else
     ruiCost = xPatternRefinement(cStruct.pcPatternKey, baseRefMv, 1, rcMvQter, !pu.cs->slice->getDisableSATDForRD());
 #endif
@@ -6200,14 +6437,15 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
   }
 
   //  Half-pel refinement
-  m_pcRdCost->setCostScale(1);
-  xExtDIFUpSamplingH(&cPatternRoi, cStruct.useAltHpelIf);
+  m_pcRdCost->setCostScale(0);
+  // xExtDIFUpSamplingH(&cPatternRoi, cStruct.useAltHpelIf);
 
   rcMvHalf = rcMvInt;   rcMvHalf <<= 2;    // for mv-cost
   Mv baseRefMv(0, 0);
 #if GDR_ENABLED
   ruiCost = xPatternRefinement(pu, eRefPicList, refIdx, cStruct.pcPatternKey, baseRefMv, 4, rcMvHalf,
-                               (!pu.cs->slice->getDisableSATDForRD()), Cst_Int_Position, rbCleanCandExist);
+                       (!pu.cs->slice->getDisableSATDForRD()), Cst_Int_Position, rcMvPred, cStruct,
+                               rbCleanCandExist);
 #else
   ruiCost = xPatternRefinement(cStruct.pcPatternKey, baseRefMv, 2, rcMvHalf, (!pu.cs->slice->getDisableSATDForRD()));
 #endif
@@ -6216,19 +6454,55 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
   //  quarter-pel refinement
   if (cStruct.imvShift == IMV_OFF)
   {
-    m_pcRdCost->setCostScale(0);
+    // m_pcRdCost->setCostScale(0);
+    // int  horVal = rcMvQter.getHor();
+    // int  verVal = rcMvQter.getVer();
+    //if (rcMvHalf.getHor() == -1 || rcMvHalf.getHor() == -3)
+    //  rcMvHalf.setHor(-2);
+    //if (rcMvHalf.getHor() == 1 || rcMvHalf.getHor() == 3)
+    //  rcMvHalf.setHor(2);
 
-    if (rcMvHalf.getHor() == -1 || rcMvHalf.getHor() == -3)
-      rcMvHalf.setHor(-2);
-    if (rcMvHalf.getHor() == 1 || rcMvHalf.getHor() == 3)
-      rcMvHalf.setHor(2);
+    //if (rcMvHalf.getVer() == -1 || rcMvHalf.getVer() == -3)
+    //  rcMvHalf.setVer(-2);
+    //if (rcMvHalf.getVer() == 1 || rcMvHalf.getVer() == 3)
+    //  rcMvHalf.setVer(2);
+// if ((-4 < horVal) && (horVal < 4) && ( -4 < verVal) && (verVal < 4)) {
+//         fprintf(fp_ptr_self,"\nPre: (%03d, %03d)\n", horVal, verVal);
+//         for (int j = 0; j < cPatternRoiforerror.height; j++)
+//         {
+//           for (int i = 0; i < cPatternRoiforerror.width; i++)
+//           {
+//             fprintf(fp_ptr_self,"%03d ", *(m_filteredBlock[0][0][0] + j * (cPatternRoiforerror.width + 1) + i));
+//           }
+//           fprintf(fp_ptr_self,"\n");
+//         }
+//       }
+    // xExtDIFUpSamplingQ(&cPatternRoi, rcMvHalf);
+    // int  horVal = rcMvQter.getHor();
+    // int  verVal = rcMvQter.getVer();
+    // Pel * piRef = m_filteredBlock[verVal & 3][horVal & 3][0];
 
-    if (rcMvHalf.getVer() == -1 || rcMvHalf.getVer() == -3)
-      rcMvHalf.setVer(-2);
-    if (rcMvHalf.getVer() == 1 || rcMvHalf.getVer() == 3)
-      rcMvHalf.setVer(2);
+    // if (horVal == 2 && (verVal & 1) == 0)
+    // {
+    //   piRef += 1;
+    // }
+    // if ((horVal & 1) == 0 && verVal == 2)
+    // {
+    //   piRef += (cStruct.pcPatternKey->width + 1);
+    // }
+// if ((-4 < horVal) && (horVal < 4) && ( -4 < verVal) && (verVal < 4)) {
 
-    xExtDIFUpSamplingQ(&cPatternRoi, rcMvHalf);
+
+//      fprintf(fp_ptr_ori,"\nPre: (%03d, %03d)\n",horVal,verVal);
+//      for (int j = 0; j < (cStruct.pcPatternKey->height); j++)
+//      {
+//       for (int i = 0; i < (cStruct.pcPatternKey->width); i++)
+//       {
+//         fprintf(fp_ptr_ori,"%03d ", *(piRef + j * (cStruct.pcPatternKey->width + 1) + i));
+//       }
+//       fprintf(fp_ptr_ori,"\n");
+//      }
+// }
     //baseRefMv = rcMvHalf;
     //baseRefMv <<= 1;
 
