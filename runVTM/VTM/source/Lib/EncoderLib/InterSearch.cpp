@@ -732,6 +732,58 @@ inline void InterSearch::xTZ8PointDiamondSearch( IntTZSearchStruct& rcStruct,
     } // iDist <= 8
   } // iDist == 1
 }
+
+void FME_fastForwardHAD_B4(const int *src, int *dst, int shift, int line, int iSkipLine, int iSkipLine2)
+{
+  int j;
+  int E[2], O[2];
+  int add = (shift > 0) ? (1 << (shift - 1)) : 0;
+  int16_t iT[16] __attribute__((unused));
+    iT[0] =  1 ;
+    iT[1] =  1 ;
+    iT[2] =  1 ;
+    iT[3] =  1 ;
+    iT[4] =  1 ;
+    iT[5] =  -1;
+    iT[6] =  1 ;
+    iT[7] =  -1;
+    iT[8] =  1 ;
+    iT[9] =  1 ;
+    iT[10] = -1;
+    iT[11] = -1;
+    iT[12] =  1;
+    iT[13] = -1;
+    iT[14] = -1;
+    iT[15] = 1;
+  int *pCoef = dst;
+  const int  reducedLine = line - iSkipLine;
+  for (j = 0; j<reducedLine; j++)
+  {
+    // // HAD
+    // /* E and O */
+    E[0] = src[0] + src[1];
+    O[0] = src[0] - src[1];
+    E[1] = src[2] + src[3];
+    O[1] = src[2] - src[3];
+
+    dst[0] = ( E[0] +  E[1] + add) >> shift;
+    dst[line] = (O[0] +  O[1] + add) >> shift;
+    dst[2 * line] = (E[0] -  E[1] + add) >> shift;
+    dst[3 * line] = (O[0] - O[1] + add) >> shift;
+
+    src += 4;
+    dst++;
+  }
+  if (iSkipLine)
+  {
+    dst = pCoef + reducedLine;
+    for (j = 0; j<4; j++)
+    {
+      memset(dst, 0, sizeof(int)*iSkipLine);
+      dst += line;
+    }
+  }
+}
 #if GDR_ENABLED
 Distortion InterSearch::xPatternRefinement(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
                                            const CPelBuf *pcPatternKey, Mv baseRefMv, int iFrac, Mv &rcMvFrac,
@@ -789,10 +841,40 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
     }
     cMvTest = pcMvRefine[i];
     cMvTest += rcMvFrac;
-
-
-    m_cDistParam.cur.buf   = piRefPos;
-    dist                   = m_cDistParam.distFunc(m_cDistParam);
+    Distortion Cst_HAD4 = 0;
+  {
+    int RES [128][128];
+    int height = pcPatternKey->height;
+    int width = pcPatternKey->width;
+    for (int j = 0; j <  height;j++) {
+      for (int i = 0; i <  width;i++) {
+        RES[j][i] = *( m_cDistParam.cur.buf + i + j * m_cDistParam.cur.stride) - *(m_cDistParam.org.buf + i + j * m_cDistParam.org.stride);
+      }
+    }
+    int src_0[16];
+    int dist_fnl[16];
+    int dist_temp[16];
+    int *src = src_0;
+    for (int posY = 0; posY <  height; posY+=4) {
+      for (int posX = 0; posX <  width; posX+=4) {
+        int k = 0;
+        for (int j = posY; j < posY + 4; j++) {
+          for (int i = posX; i < posX + 4; i++)
+            src[k++] = RES[j][i];
+        }
+        FME_fastForwardHAD_B4(src, dist_temp, 0, 4, 0, 0);
+        FME_fastForwardHAD_B4(dist_temp, dist_fnl, 0, 4, 0, 0);
+          for (int num = 0; num < 16; num++) {
+            if (num == 0) dist_fnl[num] = dist_fnl[num]/4;
+            Cst_HAD4 += abs(dist_fnl[num]);
+          }
+      }
+    }
+    Cst_HAD4 = (Cst_HAD4 +(1))>>1;
+  }
+    // m_cDistParam.cur.buf   = piRefPos;
+    // dist                   = m_cDistParam.distFunc(m_cDistParam);
+    dist = Cst_HAD4;
     dist += m_pcRdCost->getCostOfVectorWithPredictor(cMvTest.getHor(), cMvTest.getVer(), 0);
 
 #if GDR_ENABLED
