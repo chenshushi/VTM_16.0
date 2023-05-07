@@ -1,4 +1,5 @@
 .vscode
+/runVTM/session*
 /runVTM/sessionTest/*
 /runVTM/VTM/bin
 /runVTM/VTM/lib
