@@ -793,6 +793,173 @@ void InterSearch::xgetErrorPred(CPelBuf *pattern, int mvHor, int mvVer)
   //   printf("\n");
   // }
 }
+
+void FME_fastForwardDCT2_B4(const int *src, int *dst, int shift, int line, int iSkipLine, int iSkipLine2)
+{
+  int j;
+  int E[2], O[2];
+  int add = (shift > 0) ? (1 << (shift - 1)) : 0;
+  int16_t iT[16] __attribute__((unused));
+   iT[0] = 64;
+   iT[1] = 64;
+   iT[2] = 64;
+   iT[3] = 64;
+   iT[4] = 83;
+   iT[5] = 36;
+   iT[6] = -36;
+   iT[7] = -83;
+   iT[8] =  64;
+   iT[9] = -64;
+   iT[10] = -64;
+   iT[11] = 64;
+   iT[12] =  36;
+   iT[13] = -83;
+   iT[14] = 83;
+   iT[15] = -36;
+
+  int *pCoef = dst;
+  const int  reducedLine = line - iSkipLine;
+  for (j = 0; j<reducedLine; j++)
+  {
+    // DCT
+    /* E and O */
+    E[0] = src[0] + src[3];
+    O[0] = src[0] - src[3];
+    E[1] = src[1] + src[2];
+    O[1] = src[1] - src[2];
+
+    dst[0] = (iT[0] * E[0] + iT[1] * E[1] + add) >> shift;
+    dst[2 * line] = (iT[8] * E[0] + iT[9] * E[1] + add) >> shift;
+    dst[line] = (iT[4] * O[0] + iT[5] * O[1] + add) >> shift;
+    dst[3 * line] = (iT[12] * O[0] + iT[13] * O[1] + add) >> shift;
+
+    src += 4;
+    dst++;
+  }
+  if (iSkipLine)
+  {
+    dst = pCoef + reducedLine;
+    for (j = 0; j<4; j++)
+    {
+      memset(dst, 0, sizeof(int)*iSkipLine);
+      dst += line;
+    }
+  }
+}
+
+void FME_fastForwardHAD_B4(const int *src, int *dst, int shift, int line, int iSkipLine, int iSkipLine2)
+{
+  int j;
+  int E[2], O[2];
+  int add = (shift > 0) ? (1 << (shift - 1)) : 0;
+  int16_t iT[16] __attribute__((unused));
+    iT[0] =  1 ;
+    iT[1] =  1 ;
+    iT[2] =  1 ;
+    iT[3] =  1 ;
+    iT[4] =  1 ;
+    iT[5] =  -1;
+    iT[6] =  1 ;
+    iT[7] =  -1;
+    iT[8] =  1 ;
+    iT[9] =  1 ;
+    iT[10] = -1;
+    iT[11] = -1;
+    iT[12] =  1;
+    iT[13] = -1;
+    iT[14] = -1;
+    iT[15] = 1;
+  int *pCoef = dst;
+  const int  reducedLine = line - iSkipLine;
+  for (j = 0; j<reducedLine; j++)
+  {
+    // // HAD
+    // /* E and O */
+    E[0] = src[0] + src[1];
+    O[0] = src[0] - src[1];
+    E[1] = src[2] + src[3];
+    O[1] = src[2] - src[3];
+
+    dst[0] = ( E[0] +  E[1] + add) >> shift;
+    dst[line] = (O[0] +  O[1] + add) >> shift;
+    dst[2 * line] = (E[0] -  E[1] + add) >> shift;
+    dst[3 * line] = (O[0] - O[1] + add) >> shift;
+
+    src += 4;
+    dst++;
+  }
+  if (iSkipLine)
+  {
+    dst = pCoef + reducedLine;
+    for (j = 0; j<4; j++)
+    {
+      memset(dst, 0, sizeof(int)*iSkipLine);
+      dst += line;
+    }
+  }
+}
+
+#define DCT2_P8_MATRIX(a,b,c,d,e,f,g) \
+{ \
+   a,  a,  a,  a,  a,  a,  a,  a, \
+   d,  e,  f,  g, -g, -f, -e, -d, \
+   b,  c, -c, -b, -b, -c,  c,  b, \
+   e, -g, -d, -f,  f,  d,  g, -e, \
+   a, -a, -a,  a,  a, -a, -a,  a, \
+   f, -d,  g,  e, -e, -g,  d, -f, \
+   c, -b,  b, -c, -c,  b, -b,  c, \
+   g, -f,  e, -d,  d, -e,  f, -g  \
+}
+
+
+void FME_fastForwardDCT2_B8( int *src, int *dst, int shift, int line, int iSkipLine, int iSkipLine2 )
+{
+  int j, k;
+  int E[4], O[4];
+  int EE[2], EO[2];
+  int add = ( shift > 0 ) ? ( 1 << ( shift - 1 ) ) : 0;
+  int16_t iT[64] = DCT2_P8_MATRIX(64,    83,    36,    89,    75,    50,    18);
+
+  int *pCoef = dst;
+  const int  reducedLine = line - iSkipLine;
+  for( j = 0; j < reducedLine; j++ )
+  {
+    /* E and O*/
+    for( k = 0; k < 4; k++ )
+    {
+      E[k] = src[k] + src[7 - k];
+      O[k] = src[k] - src[7 - k];
+    }
+    /* EE and EO */
+    EE[0] = E[0] + E[3];
+    EO[0] = E[0] - E[3];
+    EE[1] = E[1] + E[2];
+    EO[1] = E[1] - E[2];
+
+    dst[0       ] = (iT[ 0] * EE[0] + iT[ 1] * EE[1] + add) >> shift;
+    dst[4 * line] = (iT[32] * EE[0] + iT[33] * EE[1] + add) >> shift;
+    dst[2 * line] = (iT[16] * EO[0] + iT[17] * EO[1] + add) >> shift;
+    dst[6 * line] = (iT[48] * EO[0] + iT[49] * EO[1] + add) >> shift;
+
+    dst[    line] = (iT[ 8] * O[0] + iT[ 9] * O[1] + iT[10] * O[2] + iT[11] * O[3] + add) >> shift;
+    dst[3 * line] = (iT[24] * O[0] + iT[25] * O[1] + iT[26] * O[2] + iT[27] * O[3] + add) >> shift;
+    dst[5 * line] = (iT[40] * O[0] + iT[41] * O[1] + iT[42] * O[2] + iT[43] * O[3] + add) >> shift;
+    dst[7 * line] = (iT[56] * O[0] + iT[57] * O[1] + iT[58] * O[2] + iT[59] * O[3] + add) >> shift;
+
+    src += 8;
+    dst++;
+  }
+  if( iSkipLine )
+  {
+    dst = pCoef + reducedLine;
+    for( j = 0; j < 8; j++ )
+    {
+      memset( dst, 0, sizeof( int )*iSkipLine );
+      dst += line;
+    }
+  }
+}
+
 #if GDR_ENABLED
 Distortion InterSearch::xPatternRefinement(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
                                            const CPelBuf *pcPatternKey, Mv baseRefMv, int iFrac, Mv &rcMvFrac,
@@ -831,7 +998,127 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
   int iRefStride = pcPatternKey->width + 1;
   m_pcRdCost->setDistParam( m_cDistParam, *pcPatternKey, m_filteredBlock[0][0][0], iRefStride, m_lumaClpRng.bd, COMPONENT_Y, 0, 1, m_pcEncCfg->getUseHADME() && bAllowUseOfHadamard );
 
- // const Mv* pcMvRefine = s_acMvRefineH;
+   // =================== get D at iMV point ============================
+   Mv center = rcMvFrac;
+   Distortion Cst_HAD4[3][3] = {0};
+   Distortion Cst_DCT4[3][3] = {0};
+   Distortion Cst_DCT8[3][3] = {0};
+   // get the cost of different IMV
+    for (int IMV_Y = 0; IMV_Y < 3; IMV_Y++) {
+      for (int IMV_X = 0; IMV_X < 3; IMV_X++) {
+        center.hor = rcMvFrac.getHor() + (IMV_X - 1) * iFrac;
+        center.ver = rcMvFrac.getVer() + (IMV_Y - 1) * iFrac;
+        CPelBuf cPatternRoiforDCT(cStruct.piRefY + ((center.getHor()>> 2) + (center.getVer() >> 2) * cStruct.iRefStride), cStruct.iRefStride, *cStruct.pcPatternKey);
+
+        // get RES
+        int RES [128][128];
+        int height = cPatternRoiforDCT.height;
+        int width = cPatternRoiforDCT.width;
+        // if ((width == 8) && (height == 8)){
+        //   printf("Ori\n");
+        //   for (int j = 0; j<8;j++) {
+        //     for (int i = 0; i<8;i++) {
+        //       printf("%d ",*(m_cDistParam.org.buf + i + j * m_cDistParam.org.stride));
+        //     }
+        //     printf("\n");
+        //   }
+
+        //   printf("cur\n");
+        //   for (int j = 0; j<8;j++) {
+        //     for (int i = 0; i<8;i++) {
+        //       printf("%d ",*(cPatternRoiforDCT.buf + i + j * cPatternRoiforDCT.stride));
+        //     }
+        //     printf("\n");
+        //   }
+        // } 
+
+        //  printf("\n!!!!\n");
+        for (int j = 0; j <  height;j++) {
+          for (int i = 0; i <  width;i++) {
+            RES[j][i] = *(cPatternRoiforDCT.buf + i + j * cPatternRoiforDCT.stride) - *(m_cDistParam.org.buf + i + j * m_cDistParam.org.stride);
+          //  printf("%d \t",RES[j][i]);
+          }
+        //  printf("\n");
+        }
+        // ================== HAD4 ======================================
+        {
+          int src_0[16];
+          TCoeff dist_fnl[16];
+          TCoeff dist_temp[16];
+          int *src = src_0;
+          for (int posY = 0; posY <  height; posY+=4) {
+            for (int posX = 0; posX <  width; posX+=4) {
+              int k = 0;
+              for (int j = posY; j < posY + 4; j++) {
+                for (int i = posX; i < posX + 4; i++)
+                      src[k++] = RES[j][i];
+              }
+              FME_fastForwardHAD_B4(src, dist_temp, 0, 4, 0, 0);
+              FME_fastForwardHAD_B4(dist_temp, dist_fnl, 0, 4, 0, 0);
+                for (int num = 0; num < 16; num++) {
+                  if (num == 0) dist_fnl[num] = dist_fnl[num]/4;
+                  Cst_HAD4[IMV_Y][IMV_X] += abs(dist_fnl[num]);
+                }
+                // if ((width == 8) && (height == 8)){
+                //   printf("%lld\n",Cst_DCT4[IMV_Y][IMV_X]);
+                // }
+            }
+          }
+          Cst_HAD4[IMV_Y][IMV_X] = (Cst_HAD4[IMV_Y][IMV_X] +(1))>>1;
+        }
+        // ================== DCT4 ======================================
+        {
+          int src_0[16];
+          TCoeff dist_fnl[16];
+          TCoeff dist_temp[16];
+          int *src = src_0;
+          for (int posY = 0; posY <  height; posY+=4) {
+            for (int posX = 0; posX <  width; posX+=4) {
+              int k = 0;
+              for (int j = posY; j < posY + 4; j++) {
+                for (int i = posX; i < posX + 4; i++)
+                      src[k++] = RES[j][i];
+              }
+              FME_fastForwardDCT2_B4(src, dist_temp, 0, 4, 0, 0);
+              FME_fastForwardDCT2_B4(dist_temp, dist_fnl, 0, 4, 0, 0);
+                for (int num = 0; num < 16; num++) {
+                  if (num == 0) dist_fnl[num] = dist_fnl[num]/4;
+                  Cst_DCT4[IMV_Y][IMV_X] += abs(dist_fnl[num]);
+                }
+                // if ((width == 8) && (height == 8)){
+                //   printf("%lld\n",Cst_DCT4[IMV_Y][IMV_X]);
+                // }
+            }
+          }
+          Cst_DCT4[IMV_Y][IMV_X] = (Cst_DCT4[IMV_Y][IMV_X] +(1<<13))>>14 << 1;
+        }
+        // ================== DCT8 ======================================
+        {
+          int src_0[64];
+          TCoeff dist_fnl[64];
+          TCoeff dist_temp[64];
+          int *src = src_0;
+          for (int posY = 0; posY <  height; posY+=8) {
+           for (int posX = 0; posX <  width; posX+=8) {
+             int k = 0;
+             for (int j = posY; j < posY + 8; j++) {
+               for (int i = posX; i < posX + 8; i++)
+                    src[k++] = RES[j][i];
+             }
+             FME_fastForwardDCT2_B8(src, dist_temp, 0, 8, 0, 0);
+             FME_fastForwardDCT2_B8(dist_temp, dist_fnl, 0, 8, 0, 0);
+             for (int num = 0; num < 64; num++) {
+               if (num == 0) dist_fnl[num] = dist_fnl[num]/4;
+               Cst_DCT8[IMV_Y][IMV_X] += abs(dist_fnl[num]);
+             }
+           }
+          }
+          // Cst_DCT4[IMV_Y][IMV_X] = Cst_DCT4[IMV_Y][IMV_X] /128/128;
+          Cst_DCT8[IMV_Y][IMV_X] = (Cst_DCT8[IMV_Y][IMV_X] +(1<<13))>>14;
+        }
+        // ================== DCT8 ======================================
+      }
+    }
   Mv        cMvTest;
   int      iFrac_flg;
   //int weight[3][3] = {{6,10,6},{6,20,6},{6,10,6}};
@@ -855,6 +1142,7 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
         cMvTest.setHor(cMvTmp.getHor());
         cMvTest.setVer(cMvTmp.getVer());
       }
+      // printf("============\n");
       // sovle ime error surface equation.
       for (int j = 0; j < 3; j++) {
         for (int i = 0; i < 3; i++) {
@@ -862,9 +1150,13 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
           // gauss_weight    = exp(-gauss_numerator / gauss_denominator);
           //datCstNei[j * 3 + i] = (cStruct.Cst_Int_Position[Pos_test][j][i] * weight[j][i] + m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) );
 
-          datCstNei[j * 3 + i] = (cStruct.Cst_Int_Position[Pos_test][j][i] + m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) );
+          // datCstNei[j * 3 + i] = (cStruct.Cst_Int_Position[Pos_test][j][i] + m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) );
+          datCstNei[j * 3 + i] = (Cst_HAD4[j][i] + m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) );
+          // Distortion tempR=m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0);
+          // printf("idx : %d ---- IME: %lu  ---- HAD4 %lu ---- DCT4 %lu  ---- DCT8 %lu  MV %lu\n",j * 3 + i, cStruct.Cst_Int_Position[Pos_test][j][i], Cst_HAD4[j][i], Cst_DCT4[j][i], Cst_DCT8[j][i] ,tempR);
         }
       }
+      // printf("============\n");
       int A = int(  4 * datCstNei[0]  - 8 * datCstNei[1]    + 4 * datCstNei[2] 
                   + 4 * datCstNei[3]  - 8 * datCstNei[4]    + 4 * datCstNei[5] 
                   + 4 * datCstNei[6]  - 8 * datCstNei[7]    + 4 * datCstNei[8]  );
@@ -890,8 +1182,8 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
         E          = (E > 0 ? 1 : -1) * ((abs(E) + (1 << (datSft - 1))) >> datSft);
     
         // get fmv, division and the following quant could be replace with compare.
-        float xmin        = 0.0;
-        float ymin        = 0.0;
+        double xmin        = 0.0;
+        double ymin        = 0.0;
         int   denominator = C * C - 4 * A * B;
         if (denominator != 0)
         {
@@ -961,7 +1253,26 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
         piRefPos = m_filteredBlock[0][0][0];
         // get Cst
         m_cDistParam.cur.buf   = piRefPos;
+        // if ((cPatternRoiforerror.height == 8) && (cPatternRoiforerror.width == 8)){
+        //   printf("Ori\n");
+        //   for (int j = 0; j<8;j++) {
+        //     for (int i = 0; i<8;i++) {
+        //       printf("%d ",m_cDistParam.org.buf[i + j *m_cDistParam.org.stride]);
+        //     }
+        //     printf("\n");
+        //   }
+
+        //   printf("cur\n");
+        //   for (int j = 0; j<8;j++) {
+        //     for (int i = 0; i<8;i++) {
+        //       printf("%d ",m_cDistParam.cur.buf[i + j *m_cDistParam.cur.stride]);
+        //     }
+        //     printf("\n");
+        //   }
+        // }
         Cst_tmp[Pos_test] = m_cDistParam.distFunc( m_cDistParam );
+
+        // printf("\n!!!! %lld   !!!!\n",Cst_tmp[Pos_test]);
         // !!! TODO ： here 2 is mvshift, need to be test further
         Cst_tmp[Pos_test] += m_pcRdCost->getCostOfVectorWithPredictor( cMvTest.getHor() + dlt_x, cMvTest.getVer() + dlt_y, 0 );
         // get best result
