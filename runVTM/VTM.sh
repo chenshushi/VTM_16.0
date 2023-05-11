@@ -28,7 +28,7 @@
 
 #*** PARAMETER *****************************************************************
 # directory or file name
-CSTR_CDC="VTM"
+CSTR_CDC=${1}
 CSTR_DIR_SRC="/home/share/VVC"    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_DIR_DST="dump"                                       #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_LOG_RUN="$CSTR_DIR_DST/runs.log"                     #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
