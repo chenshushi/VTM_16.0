@@ -800,6 +800,7 @@ void FME_fastForwardDCT2_B4(const int *src, int *dst, int shift, int line, int i
   int E[2], O[2];
   int add = (shift > 0) ? (1 << (shift - 1)) : 0;
   int16_t iT[16] __attribute__((unused));
+  // int16_t iT[16];
    iT[0] = 64;
    iT[1] = 64;
    iT[2] = 64;
@@ -853,6 +854,7 @@ void FME_fastForwardHAD_B4(const int *src, int *dst, int shift, int line, int iS
   int E[2], O[2];
   int add = (shift > 0) ? (1 << (shift - 1)) : 0;
   int16_t iT[16] __attribute__((unused));
+  // int16_t iT[16];
     iT[0] =  1 ;
     iT[1] =  1 ;
     iT[2] =  1 ;
@@ -1321,10 +1323,9 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
              // Transformation
              FME_fastForwardDCT2_B8(Res_ptr, T_temp, 0, 8, 0, 0);
              FME_fastForwardDCT2_B8(T_temp, T_coe, 0, 8, 0, 0);
-            //  for (int num = 0; num < 64; num++) {
-            //    if (num == 0) T_coe[num] = 0;
-            //    Cst_D_DCT8[IMV_Y][IMV_X] += abs(T_coe[num]);
-            //  }
+              for (int num = 0; num < 64; num++) {
+                T_coe[num] = T_coe[num]/128/128;
+              }
               // Get Dist_bq before quant
               for (int num = 0; num < 64; num++) {
                 Dist_bq += abs(T_coe[num]);
@@ -1394,9 +1395,10 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
               }
           else {
                 datCstNei[j * 3 + i] = Cst_D_DCT4[j][i] + ( m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0,(int)Cst_R_Res_DCT4[j][i]) );
-                // printf("CU_size(%d,%d)  idx : %d ---- D: %llu  ---- R_res %llu  ---- R_mv %llu---- lamda*R %llu  \n",pcPatternKey->width,pcPatternKey->height,j * 3 + i, Cst_D_DCT4[j][i], Cst_R_Res_DCT4[j][i],
+                // printf("CU_size(%d,%d)  idx : %d ---- D: %lu  ---- R_res %lu  ---- R_mv %lu---- lamda*R %lu  MV (%d,%d)\n",pcPatternKey->width,pcPatternKey->height,j * 3 + i, Cst_D_DCT8[j][i], Cst_R_Res_DCT8[j][i],
                 //   m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) /79,
-                //   m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0,(int)Cst_R_Res_DCT4[j][i]));
+                //   m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0,(int)Cst_R_Res_DCT8[j][i]),
+                //   cMvTest.getHor(),cMvTest.getVer() );
           }
         }
       }
