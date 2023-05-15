@@ -793,7 +793,27 @@ void InterSearch::xgetErrorPred(CPelBuf *pattern, int mvHor, int mvVer)
   //   printf("\n");
   // }
 }
+Distortion xCalcHADs2x2( const Pel *piOrg, const Pel *piCur, int iStrideOrg, int iStrideCur, int iStep )
+{
+  Distortion satd = 0;
+  TCoeff diff[4], m[4];
+  CHECK( iStep != 1, "Invalid step" );
+  diff[0] = piOrg[0             ] - piCur[0];
+  diff[1] = piOrg[1             ] - piCur[1];
+  diff[2] = piOrg[iStrideOrg    ] - piCur[0 + iStrideCur];
+  diff[3] = piOrg[iStrideOrg + 1] - piCur[1 + iStrideCur];
+  m[0] = diff[0] + diff[2];
+  m[1] = diff[1] + diff[3];
+  m[2] = diff[0] - diff[2];
+  m[3] = diff[1] - diff[3];
 
+  satd += abs(m[0] + m[1]) >> 2;
+  satd += abs(m[0] - m[1]);
+  satd += abs(m[2] + m[3]);
+  satd += abs(m[2] - m[3]);
+
+  return satd;
+}
 void FME_fastForwardDCT2_B4(const int *src, int *dst, int shift, int line, int iSkipLine, int iSkipLine2)
 {
   int j;
@@ -990,6 +1010,7 @@ int FME_fastForwardHAD_B8(const int *piOrg, const int iStrideOrg)
     }
   }
   iSumHad -= abs(m2[0][0]);
+  iSumHad += (abs(m2[0][0]) >> 2);
   iSumHad = (iSumHad + 2) >> 2;
   return(iSumHad);
 }
@@ -1169,12 +1190,11 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
 
    // =================== get D at iMV point ============================
    Mv center = rcMvFrac;
-   Distortion Cst_D_HAD4[3][3] = {0};
-   Distortion Cst_D_HAD8[3][3] = {0};
-   Distortion Cst_D_DCT4[3][3] = {0};
-   Distortion Cst_R_Res_DCT4[3][3] = {0};
-   Distortion Cst_D_DCT8[3][3] = {0};
-   Distortion Cst_R_Res_DCT8[3][3] = {0};
+   Distortion Cst_HAD2[3][3] = {0};
+   Distortion Cst_HAD4[3][3] = {0};
+   Distortion Cst_HAD8[3][3] = {0};
+   Distortion Cst_DCT4[3][3] = {0};
+   Distortion Cst_DCT8[3][3] = {0};
    // get the cost of different IMV
     for (int IMV_Y = 0; IMV_Y < 3; IMV_Y++) {
       for (int IMV_X = 0; IMV_X < 3; IMV_X++) {
@@ -1211,6 +1231,18 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
           //  printf("%d \t",RES[j][i]);
           }
         //  printf("\n");
+        }
+        // ================== HAD2 ======================================
+        {
+          for (int posY = 0; posY <  height; posY+=2) {
+           for (int posX = 0; posX <  width; posX+=2) {
+              const Pel *piOrg = (m_cDistParam.org.buf + posX + posY * m_cDistParam.org.stride);
+              const Pel *piCur = (cPatternRoiforDCT.buf + posX + posY * cPatternRoiforDCT.stride);
+              int iStrideOrg = m_cDistParam.org.stride;
+              int iStrideCur = cPatternRoiforDCT.stride;
+              Cst_HAD2[IMV_Y][IMV_X] += xCalcHADs2x2( piOrg, piCur, iStrideOrg, iStrideCur, 1 );
+            }
+          }
         }
         // ================== HAD4 ======================================
         {
