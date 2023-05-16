@@ -1190,11 +1190,13 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
 
    // =================== get D at iMV point ============================
    Mv center = rcMvFrac;
-   Distortion Cst_HAD2[3][3] = {0};
-   Distortion Cst_HAD4[3][3] = {0};
-   Distortion Cst_HAD8[3][3] = {0};
-   Distortion Cst_DCT4[3][3] = {0};
-   Distortion Cst_DCT8[3][3] = {0};
+   Distortion Cst_D_HAD2[3][3] = {0};
+   Distortion Cst_D_HAD4[3][3] = {0};
+   Distortion Cst_D_HAD8[3][3] = {0};
+   Distortion Cst_D_DCT4[3][3] = {0};
+   Distortion Cst_R_Res_DCT4[3][3] = {0};
+   Distortion Cst_D_DCT8[3][3] = {0};
+   Distortion Cst_R_Res_DCT8[3][3] = {0};
    // get the cost of different IMV
     for (int IMV_Y = 0; IMV_Y < 3; IMV_Y++) {
       for (int IMV_X = 0; IMV_X < 3; IMV_X++) {
@@ -1240,7 +1242,7 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
               const Pel *piCur = (cPatternRoiforDCT.buf + posX + posY * cPatternRoiforDCT.stride);
               int iStrideOrg = m_cDistParam.org.stride;
               int iStrideCur = cPatternRoiforDCT.stride;
-              Cst_HAD2[IMV_Y][IMV_X] += xCalcHADs2x2( piOrg, piCur, iStrideOrg, iStrideCur, 1 );
+              Cst_D_HAD2[IMV_Y][IMV_X] += xCalcHADs2x2( piOrg, piCur, iStrideOrg, iStrideCur, 1 );
             }
           }
         }
@@ -1421,8 +1423,7 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
           // datCstNei[j * 3 + i] = (Cst_D_DCT8[j][i] + m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) );
           // Distortion tempR=m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0);
           // printf("idx : %d ---- IME: %lu  ---- HAD4 %lu  ---- HAD8 %lu---- DCT4 %lu  ---- DCT8 %lu  MV %lu\n",j * 3 + i, cStruct.Cst_Int_Position[Pos_test][j][i], Cst_D_HAD4[j][i], Cst_D_HAD8[j][i], Cst_D_DCT4[j][i], Cst_D_DCT8[j][i] ,tempR);
-          if (((pcPatternKey->width == 8) && (pcPatternKey->height == 4)) ||
-              ((pcPatternKey->width == 4) && (pcPatternKey->height == 8)) ) {
+          if (((pcPatternKey->width == 4) || (pcPatternKey->height == 4)) ) {
                 datCstNei[j * 3 + i] = (cStruct.Cst_Int_Position[Pos_test][j][i] + m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) );
               }
           else {
