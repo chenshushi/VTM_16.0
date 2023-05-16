@@ -6627,6 +6627,14 @@ void InterSearch::xTZSearch(const PredictionUnit &pu, RefPicList eRefPicList, in
       }
     }
   }
+  else{
+    for (int y = -1; y <= 1; y++){
+      for (int x = -1; x <= 1; x++)
+      {
+        cStruct.Cst_Int_Position[0][y + 1][x + 1] = cStruct.uiBestSad;
+      }
+    }
+  }
 }
 
 void InterSearch::xTZSearchSelective(const PredictionUnit &pu, RefPicList eRefPicList, int refIdxPred,
