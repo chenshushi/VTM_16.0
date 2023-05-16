@@ -28,7 +28,7 @@
 
 #*** PARAMETER *****************************************************************
 # directory or file name
-CSTR_CDC="VTM"
+CSTR_CDC=$1
 CSTR_DIR_SRC="/home/share/VVC"    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_DIR_DST="dump"                                       #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_LOG_RUN="$CSTR_DIR_DST/runs.log"                     #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
@@ -233,7 +233,7 @@ do
         md5sum ${CSTR_DIR_DST_FUL}${CSTR_CDC}.bin | tee -a $CSTR_LOG_RUN
 
         # update info (psnr)
-        ./script/getInfo.py ${CSTR_DIR_DST_FUL}${CSTR_CDC}.log >> $CSTR_LOG_RLT_PSNR
+        chmod +x ./script/getInfo.py && ./script/getInfo.py ${CSTR_DIR_DST_FUL}${CSTR_CDC}.log >> $CSTR_LOG_RLT_PSNR
         echo "$CSTR_DIR_SUB" >> $CSTR_LOG_RLT_PSNR
         # process time
         # chmod +x ./script/getTime.py && ./script/getTime.py ${CSTR_DIR_DST_FUL}${CSTR_CDC}.log >> $CSTR_LOG_RLT_time
@@ -241,7 +241,7 @@ do
     done
 
     # update bd rate
-    # chmod +x ./script/getBdRate.py && ./script/getBdRate.py script/anchor.log $CSTR_LOG_RLT_PSNR > $CSTR_LOG_RLT_BDRT
+    chmod +x ./script/getBdRate.py && ./script/getBdRate.py script/anchor.log $CSTR_LOG_RLT_PSNR > $CSTR_LOG_RLT_BDRT
 
 done
     # uodate enc time

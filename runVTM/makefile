@@ -27,10 +27,10 @@
 #-------------------------------------------------------------------------------
 
 #*** PARAMETER *****************************************************************
-CSTR_CDC     ?= VTM
+CDC     ?= VTM
 CSTR_DIR_PRJ ?= ./VTM
 CSTR_TAG     ?= Test
-CSTR_SESSION := session$(CSTR_TAG)
+CSTR_SESSION := session$(CDC)
 
 
 #*** MAIN BODY *****************************************************************
@@ -38,10 +38,10 @@ help:
 	@ echo "targets:                                                                                   "
 	@ echo "  clean                       clean all generated files under /build/linux                 "
 	@ echo "  cleanall                    clean all generated files under /build/linux and all sessions"
-	@ echo "  update                      update ${CSTR_CDC}                                           "
+	@ echo "  update                      update ${CDC}                                           "
 	@ echo "  create [CSTR_TAG=String]    create a session named with sessionString                    "
 	@ echo "  run    [CSTR_TAG=String]    run session sessionString                                    "
-	@ echo "  stop                        stop all ${CSTR_CDC}                                         "
+	@ echo "  stop                        stop all ${CDC}                                         "
 	@ echo "                                                                                           "
 	@ echo "parameter:                                                                                 "
 	@ echo "  CSTR_TAG could be any string you want, for example: CSTR_TAG=Test                        "
@@ -57,22 +57,22 @@ update:
 	mkdir -p  $(CSTR_DIR_PRJ)/build ;\
 	cd        $(CSTR_DIR_PRJ)/build ;\
 	cmake ..                           ;\
-	make  -j4
+	make  -j16
 
 create: update
 	mkdir -p  ${CSTR_SESSION}
 	rm    -rf ${CSTR_SESSION}/*
 	mkdir -p  ${CSTR_SESSION}/cfg
 	mkdir -p  ${CSTR_SESSION}/script
-	cp    ${CSTR_CDC}.sh                          ${CSTR_SESSION}
-	cp    $(CSTR_DIR_PRJ)/bin/EncoderAppStatic    ${CSTR_SESSION}/${CSTR_CDC}
+	cp    VTM.sh                          ${CSTR_SESSION}
+	cp    $(CSTR_DIR_PRJ)/bin/EncoderAppStatic    ${CSTR_SESSION}/${CDC}
 	cp -r $(CSTR_DIR_PRJ)/cfg/*                   ${CSTR_SESSION}/cfg
 	cp    $(CSTR_DIR_PRJ)/script/*                ${CSTR_SESSION}/script
 	cp    ../getBdRate/*                          ${CSTR_SESSION}/script
 
 run: create
 	cd ${CSTR_SESSION}    ;\
-	chmod +x ./${CSTR_CDC}.sh && ./${CSTR_CDC}.sh
+	chmod +x ./VTM.sh && ./VTM.sh ${CDC}
 
 stop:
-	- killall -9 ${CSTR_CDC}
+	- killall -9 ${CDC}
