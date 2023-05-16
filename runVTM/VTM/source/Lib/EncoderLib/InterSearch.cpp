@@ -6982,8 +6982,8 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
     ruiCost += m_pcRdCost->getCostOfVectorWithPredictor( rcMvInt.getHor(), rcMvInt.getVer(), cStruct.imvShift );
     return;
   }
-
-  if (0){
+  bool flgUseTwoStepFME =  (cStruct.pcPatternKey->width == 4) || (cStruct.pcPatternKey->height == 4);
+  if (flgUseTwoStepFME){
   //  Half-pel refinement
   m_pcRdCost->setCostScale(1);
   xExtDIFUpSamplingH(&cPatternRoi, cStruct.useAltHpelIf);
