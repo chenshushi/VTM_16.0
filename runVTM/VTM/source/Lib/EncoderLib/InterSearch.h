@@ -398,6 +398,9 @@ protected:
 #if GDR_ENABLED
   Distortion xPatternRefinement(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
                                 const CPelBuf *pcPatternKey, Mv baseRefMv, int iFrac, Mv &rcMvFrac,
+                                bool bAllowUseOfHadamard, bool &rbCleanCandExist);
+  Distortion  xRefinementErrorsurface(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
+                                const CPelBuf *pcPatternKey, Mv baseRefMv, int iFrac, Mv &rcMvFrac,
                                 bool bAllowUseOfHadamard, Distortion Sad_Int_Position[2][3][3], Mv rcMvPred,
                                 IntTZSearchStruct &cStruct, bool &rbCleanCandExist);
 #else
