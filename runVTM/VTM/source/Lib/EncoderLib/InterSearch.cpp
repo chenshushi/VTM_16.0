@@ -1252,13 +1252,13 @@ Distortion InterSearch::xRefinementErrorsurface( const CPelBuf* pcPatternKey,
              FME_fastForwardDCT2_B8(src, dist_temp, 0, 8, 0, 0);
              FME_fastForwardDCT2_B8(dist_temp, dist_fnl, 0, 8, 0, 0);
              for (int num = 0; num < 64; num++) {
-               if (num == 0) dist_fnl[num] = 0;
-               Cst_DCT8[IMV_Y][IMV_X] += abs(dist_fnl[num]);
+               if (num == 0) dist_fnl[num] = dist_fnl[num]/4;
+               Cst_DCT8[IMV_Y][IMV_X] += ( (abs(dist_fnl[num]) + (1<<13) ) >>14 );
              }
            }
           }
           // Cst_DCT4[IMV_Y][IMV_X] = Cst_DCT4[IMV_Y][IMV_X] /128/128;
-          Cst_DCT8[IMV_Y][IMV_X] = (Cst_DCT8[IMV_Y][IMV_X] +(1<<13))>>14;
+          // Cst_DCT8[IMV_Y][IMV_X] = (Cst_DCT8[IMV_Y][IMV_X] +(1<<13))>>14;
         }
         // ================== DCT8 ======================================
       }
@@ -1298,12 +1298,12 @@ Distortion InterSearch::xRefinementErrorsurface( const CPelBuf* pcPatternKey,
           // datCstNei[j * 3 + i] = (Cst_DCT8[j][i] + m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) );
           // Distortion tempR=m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0);
           // printf("idx : %d ---- IME: %lu  ---- HAD4 %lu  ---- HAD8 %lu---- DCT4 %lu  ---- DCT8 %lu  MV %lu\n",j * 3 + i, cStruct.Cst_Int_Position[Pos_test][j][i], Cst_HAD4[j][i], Cst_HAD8[j][i], Cst_DCT4[j][i], Cst_DCT8[j][i] ,tempR);
-          if (((pcPatternKey->width == 8) && (pcPatternKey->width == 4)) ||
-              ((pcPatternKey->width == 4) && (pcPatternKey->width == 8)) ) {
+          if (((pcPatternKey->width == 4) || (pcPatternKey->height == 4))  ) {
+                assert(0);
                 datCstNei[j * 3 + i] = (cStruct.Cst_Int_Position[Pos_test][j][i] + m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) );
               }
           else {
-                datCstNei[j * 3 + i] = (Cst_HAD8[j][i] + m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) );
+                datCstNei[j * 3 + i] = (Cst_DCT8[j][i] + m_pcRdCost->getCostOfVectorWithPredictor((cMvTest.getHor() + (i - 1) * iFrac),(cMvTest.getVer() + (j - 1) * iFrac), 0) );
           }
         }
       }
