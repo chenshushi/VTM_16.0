@@ -5914,13 +5914,14 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
     xPatternSearchFracDIF(pu, eRefPicList, refIdxPred, cStruct, rcMv, cMvHalf, cMvQter, ruiCost);
 #endif
     m_pcRdCost->setCostScale( 0 );
-   //  rcMv <<= 2;
-    // rcMv  += cMvQter;
-    
-    // !!! add for MVP
-    rcMv = cMvQter;
-    // printf("final_MV(%d,%d)\n\n", cMvQter.hor, cMvQter.ver);
-    // cMvQter.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+    if((cStruct.pcPatternKey->width == 4) || (cStruct.pcPatternKey->height == 4)){
+      rcMv <<= 2;
+      rcMv  += ( cMvHalf <<= 1 );
+      rcMv  += cMvQter;
+    }
+    else{
+       rcMv = cMvQter;
+    }
     uint32_t uiMvBits = m_pcRdCost->getBitsOfVectorWithPredictor( rcMv.getHor(), rcMv.getVer(), cStruct.imvShift );
     ruiBits += uiMvBits;
     ruiCost = ( Distortion ) ( floor( fWeight * ( ( double ) ruiCost - ( double ) m_pcRdCost->getCost( uiMvBits ) ) ) + ( double ) m_pcRdCost->getCost( ruiBits ) );
