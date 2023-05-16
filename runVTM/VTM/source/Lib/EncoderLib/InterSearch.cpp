@@ -1151,7 +1151,7 @@ void Dquant (int datQp, int *dat_i ,int *dat_o, int siz){
   }
 }
 #if GDR_ENABLED
-Distortion InterSearch::xPatternRefinement(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
+Distortion InterSearch::xRefinementErrorsurface(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
                                            const CPelBuf *pcPatternKey, Mv baseRefMv, int iFrac, Mv &rcMvFrac,
                                            bool bAllowUseOfHadamard,
                                            Distortion Cst_Int_Position[2][3][3],
@@ -1160,7 +1160,7 @@ Distortion InterSearch::xPatternRefinement(const PredictionUnit &pu, RefPicList 
                                            bool &rbCleanCandExist)
 #else
 
-Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
+Distortion InterSearch::xRefinementErrorsurface( const CPelBuf* pcPatternKey,
                                             Mv baseRefMv,
                                             int iFrac, Mv& rcMvFrac,
                                             bool bAllowUseOfHadamard )
@@ -1665,6 +1665,120 @@ Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
   return distBest;
 }
 
+#if GDR_ENABLED
+Distortion InterSearch::xPatternRefinement(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
+                                           const CPelBuf *pcPatternKey, Mv baseRefMv, int iFrac, Mv &rcMvFrac,
+                                           bool bAllowUseOfHadamard, bool &rbCleanCandExist)
+#else
+
+Distortion InterSearch::xPatternRefinement( const CPelBuf* pcPatternKey,
+                                            Mv baseRefMv,
+                                            int iFrac, Mv& rcMvFrac,
+                                            bool bAllowUseOfHadamard )
+#endif
+{
+  Distortion dist;
+  Distortion distBest   = std::numeric_limits<Distortion>::max();
+  uint32_t   directBest = 0;
+
+#if GDR_ENABLED
+  const CodingStructure &cs = *pu.cs;
+  const bool isEncodeGdrClean = cs.sps->getGDREnabledFlag() && cs.pcv->isEncoder && ((cs.picHeader->getInGdrInterval() && cs.isClean(pu.Y().topRight(), CHANNEL_TYPE_LUMA)) || (cs.picHeader->getNumVerVirtualBoundaries() == 0));
+  bool                   diskOk           = false;
+  bool                   distBestOk       = false;
+  bool allOk = true;
+#endif
+  Pel*  piRefPos;
+  int iRefStride = pcPatternKey->width + 1;
+  m_pcRdCost->setDistParam( m_cDistParam, *pcPatternKey, m_filteredBlock[0][0][0], iRefStride, m_lumaClpRng.bd, COMPONENT_Y, 0, 1, m_pcEncCfg->getUseHADME() && bAllowUseOfHadamard );
+
+  const Mv* pcMvRefine = (iFrac == 2 ? s_acMvRefineH : s_acMvRefineQ);
+#if GDR_ENABLED
+  if (isEncodeGdrClean)
+  {
+    rbCleanCandExist = false;
+  }
+#endif
+  for (uint32_t i = 0; i < 9; i++)
+  {
+    if (m_skipFracME && i > 0)
+    {
+      break;
+    }
+    Mv cMvTest = pcMvRefine[i];
+    cMvTest += baseRefMv;
+
+    int horVal = cMvTest.getHor() * iFrac;
+    int verVal = cMvTest.getVer() * iFrac;
+    piRefPos = m_filteredBlock[verVal & 3][horVal & 3][0];
+
+    if (horVal == 2 && (verVal & 1) == 0)
+    {
+      piRefPos += 1;
+    }
+    if ((horVal & 1) == 0 && verVal == 2)
+    {
+      piRefPos += iRefStride;
+    }
+    cMvTest = pcMvRefine[i];
+    cMvTest += rcMvFrac;
+
+
+    m_cDistParam.cur.buf   = piRefPos;
+    dist                   = m_cDistParam.distFunc(m_cDistParam);
+    dist += m_pcRdCost->getCostOfVectorWithPredictor(cMvTest.getHor(), cMvTest.getVer(), 0);
+
+#if GDR_ENABLED
+    allOk = (dist < distBest);
+
+    if (isEncodeGdrClean)
+    {
+      Mv motion = cMvTest;
+      MvPrecision curPrec = (iFrac == 2 ? MV_PRECISION_HALF : MV_PRECISION_QUARTER);
+      motion.changePrecision(curPrec, MV_PRECISION_INTERNAL);
+      diskOk = cs.isClean(pu.Y().bottomRight(), motion, eRefPicList, refIdx);
+
+      if (diskOk)
+      {
+        allOk = (distBestOk) ? (dist < distBest) : true;
+      }
+      else
+      {
+        allOk = false;
+      }
+    }
+#endif
+
+#if GDR_ENABLED
+    if (allOk)
+#else
+    if (dist < distBest)
+#endif
+    {
+      distBest                                   = dist;
+      directBest                                 = i;
+      m_cDistParam.maximumDistortionForEarlyExit = dist;
+#if GDR_ENABLED
+      if (isEncodeGdrClean)
+      {
+        distBestOk       = diskOk;
+        rbCleanCandExist = true;
+      }
+#endif
+    }
+#if GDR_ENABLED
+    if (isEncodeGdrClean)
+    {
+      if (!rbCleanCandExist)
+        distBest = 65535;
+    }
+#endif
+  }
+
+  rcMvFrac = pcMvRefine[directBest];
+
+  return distBest;
+}
 Distortion InterSearch::xGetInterPredictionError( PredictionUnit& pu, PelUnitBuf& origBuf, const RefPicList &eRefPicList )
 {
   PelUnitBuf predBuf = m_tmpStorageLCU.getBuf( UnitAreaRelative(*pu.cu, pu) );
@@ -7015,8 +7129,7 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
     assert(0);
 #if GDR_ENABLED
     ruiCost = xPatternRefinement(pu, eRefPicList, refIdx, cStruct.pcPatternKey, baseRefMv, 1, rcMvQter,
-                         !pu.cs->slice->getDisableSATDForRD(), Cst_Int_Position, rcMvPred, cStruct,
-                                 rbCleanCandExist);
+                        !pu.cs->slice->getDisableSATDForRD(), rbCleanCandExist);
 #else
     ruiCost = xPatternRefinement(cStruct.pcPatternKey, baseRefMv, 1, rcMvQter, !pu.cs->slice->getDisableSATDForRD());
 #endif
@@ -7034,6 +7147,43 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
     return;
   }
 
+  if (0){
+  //  Half-pel refinement
+  m_pcRdCost->setCostScale(1);
+  xExtDIFUpSamplingH(&cPatternRoi, cStruct.useAltHpelIf);
+
+  rcMvHalf = rcMvInt;   rcMvHalf <<= 1;    // for mv-cost
+  Mv baseRefMv(0, 0);
+#if GDR_ENABLED
+  ruiCost = xPatternRefinement(pu, eRefPicList, refIdx, cStruct.pcPatternKey, baseRefMv, 2, rcMvHalf,
+                               (!pu.cs->slice->getDisableSATDForRD()), rbCleanCandExist);
+#else
+  ruiCost = xPatternRefinement(cStruct.pcPatternKey, baseRefMv, 2, rcMvHalf, (!pu.cs->slice->getDisableSATDForRD()));
+#endif
+
+  //  quarter-pel refinement
+  if (cStruct.imvShift == IMV_OFF)
+  {
+    m_pcRdCost->setCostScale(0);
+    xExtDIFUpSamplingQ(&cPatternRoi, rcMvHalf);
+    baseRefMv = rcMvHalf;
+    baseRefMv <<= 1;
+
+    rcMvQter = rcMvInt;
+    rcMvQter <<= 1;   // for mv-cost
+    rcMvQter += rcMvHalf;
+    rcMvQter <<= 1;
+#if GDR_ENABLED
+    ruiCost = xPatternRefinement(pu, eRefPicList, refIdx, cStruct.pcPatternKey, baseRefMv, 1, rcMvQter,
+                                 (!pu.cs->slice->getDisableSATDForRD()), rbCleanCandExist);
+#else
+    ruiCost = xPatternRefinement(cStruct.pcPatternKey, baseRefMv, 1, rcMvQter, (!pu.cs->slice->getDisableSATDForRD()));
+#endif
+  }
+
+  }
+  else{
+  //-----Error_Surface------
   //  Half-pel refinement
   m_pcRdCost->setCostScale(0);
   // xExtDIFUpSamplingH(&cPatternRoi, cStruct.useAltHpelIf);
@@ -7041,7 +7191,7 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
   rcMvHalf = rcMvInt;   rcMvHalf <<= 2;    // for mv-cost
   Mv baseRefMv(0, 0);
 #if GDR_ENABLED
-  ruiCost = xPatternRefinement(pu, eRefPicList, refIdx, cStruct.pcPatternKey, baseRefMv, 4, rcMvHalf,
+  ruiCost = xRefinementErrorsurface(pu, eRefPicList, refIdx, cStruct.pcPatternKey, baseRefMv, 4, rcMvHalf,
                        (!pu.cs->slice->getDisableSATDForRD()), Cst_Int_Position, rcMvPred, cStruct,
                                rbCleanCandExist);
 #else
@@ -7114,6 +7264,7 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
 // #else
 //     ruiCost = xPatternRefinement(cStruct.pcPatternKey, baseRefMv, 1, rcMvQter, (!pu.cs->slice->getDisableSATDForRD()));
 // #endif
+  }
   }
 }
 
