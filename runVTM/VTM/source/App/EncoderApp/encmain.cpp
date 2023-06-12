@@ -50,6 +50,9 @@
 static const uint32_t settingNameWidth = 66;
 static const uint32_t settingHelpWidth = 84;
 static const uint32_t settingValueWidth = 3;
+extern clock_t BmeTime;
+extern clock_t getmvpTime;
+extern clock_t opticalTime;
 // --------------------------------------------------------------------------------------------------------------------- //
 
 //macro value printing function
@@ -325,6 +328,10 @@ int main(int argc, char* argv[])
          (endClock - startClock) * 1.0 / CLOCKS_PER_SEC,
          encTime / 1000.0);
 #endif
+  printf(" BME: %12.5f sec. opticalME:  %12.5f sec. getmvpTime:  %12.5f sec.\n",
+         (BmeTime) * 1.0 / CLOCKS_PER_SEC,
+         (opticalTime) * 1.0 / CLOCKS_PER_SEC,
+         (getmvpTime)* 1.0 / CLOCKS_PER_SEC);
 
   return 0;
 }

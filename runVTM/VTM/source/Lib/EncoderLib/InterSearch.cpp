@@ -52,7 +52,9 @@
 
 #include <math.h>
 #include <limits>
-
+clock_t BmeTime = 0.0;
+clock_t opticalTime = 0.0;
+clock_t getmvpTime = 0.0;
 
  //! \ingroup EncoderLib
  //! \{
@@ -4913,6 +4915,11 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
 
   Mv cMvHalf, cMvQter;
   Mv best_P_InitMv = rcMv;
+  clock_t BiImeStard;
+  if(bBi && (pu.cu->imv == 0 || pu.cu->imv == IMV_HPEL)) // Bi-predictive ME
+  {
+    BiImeStard = clock();
+  }
   CHECK(eRefPicList >= MAX_NUM_REF_LIST_ADAPT_SR || refIdxPred >= int(MAX_IDX_ADAPT_SR),
         "Invalid reference picture list");
   m_iSearchRange = m_aaiAdaptSR[eRefPicList][refIdxPred];
@@ -4991,6 +4998,11 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
   //  Do integer search
   if( ( m_motionEstimationSearchMethod == MESEARCH_FULL ) || bBi || bQTBTMV )
   {
+      clock_t getmvpTimeStart, getmvpTimeEnd;
+    if(bBi && (pu.cu->imv == 0 || pu.cu->imv == IMV_HPEL)) // Bi-predictive ME
+    {
+      getmvpTimeStart = clock();
+    }
     cStruct.subShiftMode = m_pcEncCfg->getFastInterSearchMode() == FASTINTERSEARCH_MODE1 || m_pcEncCfg->getFastInterSearchMode() == FASTINTERSEARCH_MODE3 ? 2 : 0;
     m_pcRdCost->setDistParam(m_cDistParam, *cStruct.pcPatternKey, cStruct.piRefY, cStruct.iRefStride, m_lumaClpRng.bd, COMPONENT_Y, cStruct.subShiftMode);
 
@@ -5035,7 +5047,11 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
         m_cDistParam.maximumDistortionForEarlyExit = uiSad;
       }
     }
-
+    if(bBi && (pu.cu->imv == 0 || pu.cu->imv == IMV_HPEL)) // Bi-predictive ME
+    {
+      getmvpTimeEnd = clock();
+      getmvpTime += getmvpTimeEnd - getmvpTimeStart;
+    }
     if( !bQTBTMV )
     {
 #if GDR_ENABLED
@@ -5087,6 +5103,12 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
       {
         MCTSHelper::clipMvToArea( rcMv, pu.Y(), curTileAreaSubPelRestricted, *pu.cs->sps, 0 );
       }
+    }
+
+    if(bBi) // Bi-predictive ME
+    {
+      clock_t BiImeEnd = clock();
+      BmeTime += (BiImeEnd - BiImeStard);
     }
 #if GDR_ENABLED
     xPatternSearchFracDIF(pu, eRefPicList, refIdxPred, cStruct, best_P_InitMv, rcMv, cMvHalf, cMvQter, ruiCost,
@@ -6372,7 +6394,10 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
 #endif
 )
 {
-
+  clock_t BiFmeStard, BiFmeEnd;
+  if (bBi){
+    BiFmeStard = clock();
+  }
   //  Reference pattern initialization (integer scale)
   int     offset = rcMvInt.getHor() + rcMvInt.getVer() * cStruct.iRefStride;
   CPelBuf cPatternRoi(cStruct.piRefY + offset, cStruct.iRefStride, *cStruct.pcPatternKey);
@@ -6435,8 +6460,15 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
     ruiCost = xPatternRefinement(cStruct.pcPatternKey, baseRefMv, 1, rcMvQter, (!pu.cs->slice->getDisableSATDForRD()));
 #endif
   }
+
+  if (bBi){
+    BiFmeEnd = clock();
+    BmeTime += (BiFmeEnd - BiFmeStard);
+  }
+
   // Optical Flow for Fractional Motion Estimation
   if (bBi) {
+    clock_t OpticalStard = clock();
      //printf("VTM: Ini :  (%03d, %03d)  Dlt : (%03d, %03d)  MV : (%03d, %03d)\n", (rcMvInt.hor << 2),
      //                                                                            (rcMvInt.ver << 2), 
      //                                                                            (rcMvHalf.hor << 1) + rcMvQter.hor,
@@ -6448,6 +6480,8 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
      Mv test = best_P_InitMv;
      test.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
     xOpticalFlow(pu, &cPatternRoi, cStruct, test, rcMvQter, bBi);
+    clock_t OpticalEnd = clock();
+    opticalTime += (OpticalEnd - OpticalStard);
      //printf("DF : Ini :  (%03d, %03d)  Dlt : (%03d, %03d)  MV : (%03d, %03d)\n", best_P_InitMv.hor, best_P_InitMv.ver,
      //                                                                            rcMvQter.hor - best_P_InitMv.hor,
      //                                                                            rcMvQter.ver - best_P_InitMv.ver,
