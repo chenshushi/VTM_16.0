@@ -4998,7 +4998,8 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
   //  Do integer search
   if( ( m_motionEstimationSearchMethod == MESEARCH_FULL ) || bBi || bQTBTMV )
   {
-      clock_t getmvpTimeStart, getmvpTimeEnd;
+    clock_t getmvpTimeStart = clock();
+    clock_t getmvpTimeEnd = clock();
     if(bBi && (pu.cu->imv == 0 || pu.cu->imv == IMV_HPEL)) // Bi-predictive ME
     {
       getmvpTimeStart = clock();
@@ -5044,6 +5045,7 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
       {
         uiBestSad = uiSad;
         bestInitMv                                 = curMvInfo->uniMvs[eRefPicList][refIdxPred];
+        best_P_InitMv = bestInitMv;
         m_cDistParam.maximumDistortionForEarlyExit = uiSad;
       }
     }
@@ -6132,14 +6134,14 @@ void InterSearch::xEqualCoeffComputer_fme(Pel* pResidue, int residueStride, int*
         /*int cy = ((j >> 2) << 2) + 2;*/
         for (int k = 0; k != width; k++)
         {
-          bool flg_skip_y = ((j%8 == 0) || (j%8 == 7)) ? true : false;
-          bool flg_skip_x = ((k%8 == 0) || (k%8 == 7)) ? true : false;
-          if (height > 6 && flg_skip_y) {
-            continue;
-          }
-          if (width > 6 && flg_skip_x) {
-            continue;
-          }
+          // bool flg_skip_y = ((j%8 == 0) || (j%8 == 7)) ? true : false;
+          // bool flg_skip_x = ((k%8 == 0) || (k%8 == 7)) ? true : false;
+          // if (height > 6 && flg_skip_y) {
+          //   continue;
+          // }
+          // if (width > 6 && flg_skip_x) {
+          //   continue;
+          // }
             int iC[2];
 
             int idx = j * derivateBufStride + k;

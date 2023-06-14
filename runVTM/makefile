@@ -27,7 +27,7 @@
 #-------------------------------------------------------------------------------
 
 #*** PARAMETER *****************************************************************
-CSTR_CDC     ?= VTM
+CSTR_CDC     ?= VTM_A1_3
 CSTR_DIR_PRJ ?= ./VTM
 CSTR_TAG     ?= Test
 CSTR_SESSION := session$(CSTR_TAG)
@@ -64,7 +64,7 @@ create: update
 	rm    -rf ${CSTR_SESSION}/*
 	mkdir -p  ${CSTR_SESSION}/cfg
 	mkdir -p  ${CSTR_SESSION}/script
-	cp    ${CSTR_CDC}.sh                          ${CSTR_SESSION}
+	cp    VTM.sh                          ${CSTR_SESSION}
 	cp    $(CSTR_DIR_PRJ)/bin/EncoderAppStatic    ${CSTR_SESSION}/${CSTR_CDC}
 	cp -r $(CSTR_DIR_PRJ)/cfg/*                   ${CSTR_SESSION}/cfg
 	cp    $(CSTR_DIR_PRJ)/script/*                ${CSTR_SESSION}/script
@@ -72,7 +72,7 @@ create: update
 
 run: create
 	cd ${CSTR_SESSION}    ;\
-	    ./${CSTR_CDC}.sh
+	chmod +x ./VTM.sh && ./VTM.sh ${CSTR_CDC}
 
 stop:
 	- killall -9 ${CSTR_CDC}
