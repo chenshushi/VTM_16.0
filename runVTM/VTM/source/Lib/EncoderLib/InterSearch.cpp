@@ -6558,6 +6558,8 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
   clipMv(L0_InitMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
   clipMv(L0_InitMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
   Distortion uiDist    = std::numeric_limits<Distortion>::max();
+  const ClpRng &clpRng = m_lumaClpRng;
+  Aver_prePxl.bufs[0].addWeightedAvg_bi(L0_prePxl, L1_prePxl, clpRng,2);
   m_cDistParam.cur.buf = Aver_prePxl.bufs[0].buf;
   m_pcRdCost->setDistParam(m_cDistParam, oriPxl, Aver_prePxl.bufs[0].buf, Aver_prePxl.bufs[0].stride, m_lumaClpRng.bd,
                            COMPONENT_Y, 0, 1, true);
@@ -6615,7 +6617,7 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
   //// get L1_pre
   //L1_filteredBlock = L1_prePxl.buf;
   // get average_pre
-  const ClpRng &clpRng = m_lumaClpRng;
+
  /* Aver_prePxl.addWeightedAvg(CPelBuf(L0_filteredBlock, oriStride, pu.lumaSize()),
                      CPelBuf(L1_filteredBlock, oriStride, pu.lumaSize()), clpRng,0);*/
   //Aver_prePxl.addWeightedAvg(L0_prePxl, L0_prePxl, clpRng, 0);
@@ -6628,7 +6630,7 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
   //pcYuvDst.bufs[0].addAvg(CPelBuf(pSrcY0, src0Stride, pu.lumaSize()), CPelBuf(pSrcY1, src1Stride, pu.lumaSize()),
   /*                        clpRngs.comp[0]);*/
   // Aver_prePxl.bufs[0].addAvg(L0_prePxl, L1_prePxl, clpRng);
-  Aver_prePxl.bufs[0].addWeightedAvg_bi(L0_prePxl, L1_prePxl, clpRng,2);
+
 
  /////////////////////////////
   //printf("PRE_Fnl: \n");
