@@ -3454,13 +3454,17 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
               }
               // call ME
               xCopyAMVPInfo(&aacAMVPInfo[refList][refIdxTemp], &amvp[eRefPicList]);
+              int refList_another = (refList ? 0 : 1);
+              int refIdx_another = refIdx[refList_another];
 #if GDR_ENABLED
               bCleanCandExist = false;
               xMotionEstimation(pu, origBuf, eRefPicList, cMvPredBi[refList][refIdxTemp], refIdxTemp,
                                 cMvTemp[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
                                 aaiMvpIdxBi[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList],
-                                bCleanCandExist, true, cMvTemp[0][0], cMvTemp[1][0], cMvPredBi[0][0], cMvPredBi[1][0],
-                                cMvTemp[0][0], cMvTemp[1][0]);
+                                bCleanCandExist, true, 
+                                cMvTemp[refList][refIdxTemp], cMvTemp[refList_another][refIdx_another],
+                                cMvPredBi[refList][refIdxTemp], cMvPredBi[refList_another][refIdx_another],
+                                cMvTemp[refList][refIdxTemp], cMvTemp[refList_another][refIdx_another]);
 #else
               xMotionEstimation(pu, origBuf, eRefPicList, cMvPredBi[refList][refIdxTemp], refIdxTemp,
                                 cMvTemp[refList][refIdxTemp], aaiMvpIdxBi[refList][refIdxTemp], bitsTemp, costTemp,
@@ -5264,7 +5268,7 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
       ruiCost = (Distortion)(floor(fWeight * ((double) ruiCost - (double) m_pcRdCost->getCost(uiMvBits)))
                            + (double) m_pcRdCost->getCost(ruiBits));
       L0_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
-      L0_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
+      L1_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
     }
     return;
     //// NOTE: Other buf contains predicted signal from another direction
