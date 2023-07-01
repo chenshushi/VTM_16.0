@@ -3430,6 +3430,10 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
             iRefEnd   = cs.slice->getNumRefIdx(eRefPicList) - 1;
             for (int refIdxTemp = iRefStart; refIdxTemp <= iRefEnd; refIdxTemp++)
             {
+              pu.mv[refList]     = cMvTemp[refList][refIdxTemp];
+              pu.refIdx[refList] = refIdxTemp;
+              PelUnitBuf predBufCur = m_tmpPredStorage[refList].getBuf( UnitAreaRelative(cu, pu) );
+              motionCompensation( pu, predBufCur, (refList == 1 ? REF_PIC_LIST_0 : REF_PIC_LIST_1) );
               if (m_pcEncCfg->getUseBcwFast() && (bcwIdx != BCW_DEFAULT)
                   && (pu.cu->slice->getRefPic(eRefPicList, refIdxTemp)->getPOC()
                       == pu.cu->slice->getRefPic(RefPicList(1 - refList), pu.refIdx[1 - refList])->getPOC())
@@ -5144,7 +5148,7 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
 void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred,
                                     int refIdxPred, Mv &rcMv, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits,
                                     Distortion &ruiCost, const AMVPInfo &amvpInfo, bool &rbCleanCandExist, bool bBi,
-                                    Mv L0_InitMv, Mv L1_InitMv, Mv L0_MVP, Mv L1_MVP, Mv &L0_finalMv, Mv &L1_finalMv)
+                                    Mv Lcur_InitMv, Mv Lano_InitMv, Mv Lcur_MVP, Mv Lano_MVP, Mv &Lcur_finalMv, Mv &Lano_finalMv)
 #else
 void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred,
                                     int refIdxPred, Mv &rcMv, int &riMVPIdx, uint32_t &ruiBits, Distortion &ruiCost,
@@ -5181,96 +5185,107 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
     // get ori pixel
     PelUnitBuf origBufCopy;
     origBufCopy = origBuf;
-    // get L0_information
-    bool       L0_wrap = pu.cu->slice->getRefPic(REF_PIC_LIST_0, 0)->isWrapAroundEnabled(pu.cs->pps);
-    CPelBuf    L0_buf  = pu.cu->slice->getRefPic(REF_PIC_LIST_0, 0)->getRecoBuf(pu.blocks[COMPONENT_Y], L0_wrap);
-    PelUnitBuf L0_PBuf;
-    if (val_L1)
-      L0_PBuf = m_tmpPredStorage[(int) REF_PIC_LIST_0].getBuf(UnitAreaRelative(*pu.cu, pu));
-    else
-    {
-      L0_PBuf = m_tmpPredStorage[1 - (int) REF_PIC_LIST_0].getBuf(UnitAreaRelative(*pu.cu, pu));
-    }
+    // get L_cur
+    bool       Lcur_wrap = pu.cu->slice->getRefPic(eRefPicList, refIdxPred)->isWrapAroundEnabled(pu.cs->pps);
+    CPelBuf    Lcur_buf  = pu.cu->slice->getRefPic(eRefPicList, refIdxPred)->getRecoBuf(pu.blocks[COMPONENT_Y], Lcur_wrap);
+    PelUnitBuf Lcur_PBuf;
+    // if (val_L1)
+    //   Lcur_PBuf = m_tmpPredStorage[(int) REF_PIC_LIST_0].getBuf(UnitAreaRelative(*pu.cu, pu));
+    // else
+    // {
+    //   Lcur_PBuf = m_tmpPredStorage[1 - (int) REF_PIC_LIST_0].getBuf(UnitAreaRelative(*pu.cu, pu));
+    // }
+    Lcur_PBuf = m_tmpPredStorage[(int)eRefPicList].getBuf(UnitAreaRelative(*pu.cu, pu));
 
-    CPelBuf           L0_tmpPattern   = L0_PBuf.Y();
-    CPelBuf *         L0_pcPatternKey = &L0_tmpPattern;
-    IntTZSearchStruct L0_cStruct;
-    L0_cStruct.pcPatternKey = L0_pcPatternKey;
-    L0_cStruct.iRefStride   = L0_buf.stride;
-    L0_cStruct.piRefY       = L0_buf.buf;
-    L0_cStruct.imvShift     = pu.cu->imv == IMV_HPEL ? 1 : (pu.cu->imv << 1);
-    L0_cStruct.useAltHpelIf = pu.cu->imv == IMV_HPEL;
-    L0_cStruct.inCtuSearch  = false;
-    L0_cStruct.zeroMV       = false;
+    CPelBuf           Lcur_tmpPattern   = Lcur_PBuf.Y();
+    CPelBuf *         Lcur_pcPatternKey = &Lcur_tmpPattern;
+    IntTZSearchStruct Lcur_cStruct;
+    Lcur_cStruct.pcPatternKey = Lcur_pcPatternKey;
+    Lcur_cStruct.iRefStride   = Lcur_buf.stride;
+    Lcur_cStruct.piRefY       = Lcur_buf.buf;
+    Lcur_cStruct.imvShift     = pu.cu->imv == IMV_HPEL ? 1 : (pu.cu->imv << 1);
+    Lcur_cStruct.useAltHpelIf = pu.cu->imv == IMV_HPEL;
+    Lcur_cStruct.inCtuSearch  = false;
+    Lcur_cStruct.zeroMV       = false;
     {
-      if (m_useCompositeRef && pu.cs->slice->getRefPic(REF_PIC_LIST_0, 0)->longTerm)
+      if (m_useCompositeRef && pu.cs->slice->getRefPic(eRefPicList, refIdxPred)->longTerm)
       {
-        L0_cStruct.inCtuSearch = true;
+        Lcur_cStruct.inCtuSearch = true;
       }
     }
-    //  L0_Reference pattern initialization (integer scale)
-    Mv L0_int_PMV = L0_InitMv;
-    L0_int_PMV.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_INT);
-    int     L0_offset = L0_int_PMV.getHor() + L0_int_PMV.getVer() * L0_cStruct.iRefStride;
-    CPelBuf L0_cPatternRoi(L0_cStruct.piRefY + L0_offset, L0_cStruct.iRefStride, *L0_cStruct.pcPatternKey);
+    //  Lcur_Reference pattern initialization (integer scale)
+    Mv Lcur_int_PMV = Lcur_InitMv;
+    Lcur_int_PMV.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_INT);
+    int     Lcur_offset = Lcur_int_PMV.getHor() + Lcur_int_PMV.getVer() * Lcur_cStruct.iRefStride;
+    CPelBuf Lcur_cPatternRoi(Lcur_cStruct.piRefY + Lcur_offset, Lcur_cStruct.iRefStride, *Lcur_cStruct.pcPatternKey);
 
-    // get L0_information
-    IntTZSearchStruct L1_cStruct;
-    CPelBuf           L1_cPatternRoi;
-    if (val_L1 == 1)
+    // get Lano_information
+    IntTZSearchStruct Lano_cStruct;
+    CPelBuf           Lano_cPatternRoi;
+    
+    RefPicList anoRefPicList = ((eRefPicList ==  REF_PIC_LIST_1) ? REF_PIC_LIST_0 : REF_PIC_LIST_1);
+    // anoRefPicList, pu.refIdx[anoRefPicList]
+    if (1)
     {
-      bool       L1_wrap = pu.cu->slice->getRefPic(REF_PIC_LIST_1, 0)->isWrapAroundEnabled(pu.cs->pps);
-      CPelBuf    L1_buf  = pu.cu->slice->getRefPic(REF_PIC_LIST_1, 0)->getRecoBuf(pu.blocks[COMPONENT_Y], L1_wrap);
-      PelUnitBuf L1_PBuf = m_tmpPredStorage[(int) REF_PIC_LIST_1].getBuf(UnitAreaRelative(*pu.cu, pu));
-      CPelBuf    L1_tmpPattern   = L1_PBuf.Y();
-      CPelBuf *  L1_pcPatternKey = &L1_tmpPattern;
+      bool       Lano_wrap = pu.cu->slice->getRefPic(anoRefPicList, pu.refIdx[anoRefPicList])->isWrapAroundEnabled(pu.cs->pps);
+      CPelBuf    Lano_buf  = pu.cu->slice->getRefPic(anoRefPicList, pu.refIdx[anoRefPicList])->getRecoBuf(pu.blocks[COMPONENT_Y], Lano_wrap);
+      PelUnitBuf Lano_PBuf = m_tmpPredStorage[(int) anoRefPicList].getBuf(UnitAreaRelative(*pu.cu, pu));
+      CPelBuf    Lano_tmpPattern   = Lano_PBuf.Y();
+      CPelBuf *  Lano_pcPatternKey = &Lano_tmpPattern;
 
-      L1_cStruct.pcPatternKey = L1_pcPatternKey;
-      L1_cStruct.iRefStride   = L1_buf.stride;
-      L1_cStruct.piRefY       = L1_buf.buf;
-      L1_cStruct.imvShift     = pu.cu->imv == IMV_HPEL ? 1 : (pu.cu->imv << 1);
-      L1_cStruct.useAltHpelIf = pu.cu->imv == IMV_HPEL;
-      L1_cStruct.inCtuSearch  = false;
-      L1_cStruct.zeroMV       = false;
+      Lano_cStruct.pcPatternKey = Lano_pcPatternKey;
+      Lano_cStruct.iRefStride   = Lano_buf.stride;
+      Lano_cStruct.piRefY       = Lano_buf.buf;
+      Lano_cStruct.imvShift     = pu.cu->imv == IMV_HPEL ? 1 : (pu.cu->imv << 1);
+      Lano_cStruct.useAltHpelIf = pu.cu->imv == IMV_HPEL;
+      Lano_cStruct.inCtuSearch  = false;
+      Lano_cStruct.zeroMV       = false;
       {
-        if (m_useCompositeRef && pu.cs->slice->getRefPic(REF_PIC_LIST_1, 0)->longTerm)
+        if (m_useCompositeRef && pu.cs->slice->getRefPic(anoRefPicList, pu.refIdx[anoRefPicList]))
         {
-          L1_cStruct.inCtuSearch = true;
+          Lano_cStruct.inCtuSearch = true;
         }
       }
-      //  L1_Reference pattern initialization (integer scale)
-      Mv L1_int_PMV = L1_InitMv;
-      L1_int_PMV.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_INT);
-      int     L1_offset = L1_int_PMV.getHor() + L1_int_PMV.getVer() * L1_cStruct.iRefStride;
-      CPelBuf L1_cPatternRoi_tmp(L1_cStruct.piRefY + L1_offset, L1_cStruct.iRefStride, *L1_cStruct.pcPatternKey);
-      L1_cPatternRoi = L1_cPatternRoi_tmp;
+      //  Lano_Reference pattern initialization (integer scale)
+      Mv Lano_int_PMV = Lano_InitMv;
+      Lano_int_PMV.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_INT);
+      int     Lano_offset = Lano_int_PMV.getHor() + Lano_int_PMV.getVer() * Lano_cStruct.iRefStride;
+      CPelBuf Lano_cPatternRoi_tmp(Lano_cStruct.piRefY + Lano_offset, Lano_cStruct.iRefStride, *Lano_cStruct.pcPatternKey);
+      Lano_cPatternRoi = Lano_cPatternRoi_tmp;
     }
-
-    if (val_L1)
+    // if (1)
     {
-      xOpticalFlow(pu, &origBufCopy, &L0_cPatternRoi, &L1_cPatternRoi, L0_cStruct, L1_cStruct, L0_InitMv, L1_InitMv, L0_MVP, L1_MVP, L0_finalMv, L1_finalMv, val_L1);
+      Mv begin = Lano_InitMv;
+      Mv finish = Lano_finalMv;
+
+      xOpticalFlow(pu, &origBufCopy, &Lcur_cPatternRoi, &Lano_cPatternRoi, Lcur_cStruct, Lano_cStruct, Lcur_InitMv, begin, Lcur_MVP, Lano_MVP, Lcur_finalMv, finish, val_L1);
          
-      uint32_t uiMvBits = (uint32_t) m_pcRdCost->getCostOfVectorWithBiPre(L0_finalMv, L1_finalMv,L0_MVP,L1_MVP, L0_cStruct.imvShift);
+      uint32_t uiMvBits = (uint32_t) m_pcRdCost->getCostOfVectorWithBiPre(Lcur_finalMv, finish,Lcur_MVP,Lano_MVP, Lcur_cStruct.imvShift);
       ruiBits += uiMvBits;
       ruiCost = (Distortion)(floor(fWeight * ((double) ruiCost - (double) m_pcRdCost->getCost(uiMvBits)))
                            + (double) m_pcRdCost->getCost(ruiBits));
-      L0_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
-      L1_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
+      if(val_L1 == 1){
+        Lano_finalMv = finish;
+      }
+      // L0_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
+      // L1_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
     }
-    else
-    {
-      CPelBuf L1_cPatternRoi_copyL0 = L0_cPatternRoi;
-      IntTZSearchStruct L1_cStruct_copyL0 = L0_cStruct;
-      xOpticalFlow(pu, &origBufCopy, &L0_cPatternRoi, &L1_cPatternRoi_copyL0, L0_cStruct, L1_cStruct_copyL0, L0_InitMv, L0_InitMv, L0_MVP, L1_MVP, L0_finalMv, L0_finalMv, val_L1);
+    // if (val_L1 != 1)
+    // {
 
-      uint32_t uiMvBits = (uint32_t) m_pcRdCost->getCostOfVectorWithBiPre(L0_finalMv, L0_finalMv,L0_MVP,L0_MVP, L0_cStruct.imvShift);
-      ruiBits += uiMvBits;
-      ruiCost = (Distortion)(floor(fWeight * ((double) ruiCost - (double) m_pcRdCost->getCost(uiMvBits)))
-                           + (double) m_pcRdCost->getCost(ruiBits));
-      L0_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
-      L1_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
-    }
-    return;
+    //   // printf("====== 3 =========\n");
+
+    //   // CPelBuf L1_cPatternRoi_copyL0 = L0_cPatternRoi;
+    //   // IntTZSearchStruct L1_cStruct_copyL0 = L0_cStruct;
+    //   // xOpticalFlow(pu, &origBufCopy, &L0_cPatternRoi, &L1_cPatternRoi_copyL0, L0_cStruct, L1_cStruct_copyL0, L0_InitMv, L1_InitMv, L0_MVP, L1_MVP, L0_finalMv, L1_finalMv, val_L1);
+
+    //   // uint32_t uiMvBits = (uint32_t) m_pcRdCost->getCostOfVectorWithBiPre(L0_finalMv, L0_finalMv,L0_MVP,L0_MVP, L0_cStruct.imvShift);
+    //   // ruiBits += uiMvBits;
+    //   // ruiCost = (Distortion)(floor(fWeight * ((double) ruiCost - (double) m_pcRdCost->getCost(uiMvBits)))
+    //   //                      + (double) m_pcRdCost->getCost(ruiBits));
+    //   // L0_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
+    //   // L1_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
+    // }
     //// NOTE: Other buf contains predicted signal from another direction
     // PelUnitBuf otherBuf = m_tmpPredStorage[1 - (int) eRefPicList].getBuf(UnitAreaRelative(*pu.cu, pu));
     // origBufTmp.copyFrom(origBuf);
@@ -6544,35 +6559,52 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
 {
   CPelBuf    oriPxl    = origBufCopy->Y();
   int        oriStride = origBufCopy->Y().stride;
-  CPelBuf    L0_prePxl = *L0_cStruct.pcPatternKey;
-  CPelBuf    L1_prePxl = *L1_cStruct.pcPatternKey;
-  PelUnitBuf Aver_prePxl = m_tmpAffiStorage.getBuf( UnitAreaRelative(*pu.cu, pu) );
+ // CPelBuf    L0_prePxl = *L0_cStruct.pcPatternKey;
+ // CPelBuf    L1_prePxl = *L1_cStruct.pcPatternKey;
+ // PelUnitBuf Aver_prePxl = m_tmpAffiStorage.getBuf( UnitAreaRelative(*pu.cu, pu) );
   int        width     = L0_cPatternRoi->width;
   int        height    = L0_cPatternRoi->height;
   //int        preStride = L0_prePxl.stride;
+  L0_finalMv            = L0_InitMv;
+  L1_finalMv            = L1_InitMv;
+  // return;
   // get L0_and L1_CST
   L0_InitMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
   L1_InitMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
   L0_MVP.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
   L1_MVP.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
   clipMv(L0_InitMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
-  clipMv(L0_InitMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
+  clipMv(L1_InitMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
+  xGetPre_fme(L0_InitMv, L0_cStruct, true);
+  xGetPre_fme(L1_InitMv, L1_cStruct, false);
   Distortion uiDist    = std::numeric_limits<Distortion>::max();
-  const ClpRng &clpRng = m_lumaClpRng;
-  Aver_prePxl.bufs[0].addWeightedAvg_bi(L0_prePxl, L1_prePxl, clpRng,2);
-  m_cDistParam.cur.buf = Aver_prePxl.bufs[0].buf;
-  m_pcRdCost->setDistParam(m_cDistParam, oriPxl, Aver_prePxl.bufs[0].buf, Aver_prePxl.bufs[0].stride, m_lumaClpRng.bd,
+  // const ClpRng &clpRng = m_lumaClpRng;
+  // Aver_prePxl.bufs[0].addWeightedAvg_bi(L0_prePxl, L1_prePxl, clpRng,2);
+  CPelBuf    Bi_prePxl;
+  Pel *      pPredL0 = m_filteredBlock[0][0][0];
+  Pel *      pPredL1 = m_filteredBlock[0][0][1];
+  Pel *      pPredBi = m_filteredBlock[0][0][2];
+
+  for (int j = 0; j < Bi_prePxl.height; j++){
+    for (int i = 0; i < Bi_prePxl.width; i++){
+       pPredBi[i] = (pPredL0[i] + pPredL1[i] + 1) >> 1;
+    }
+    pPredL0 += width;
+    pPredL1 += width;
+    pPredBi += width;
+  }
+
+  m_cDistParam.cur.buf = m_filteredBlock[0][0][2];
+  m_pcRdCost->setDistParam(m_cDistParam, oriPxl, m_filteredBlock[0][0][2], width, m_lumaClpRng.bd,
                            COMPONENT_Y, 0, 1, true);
   uiDist = m_cDistParam.distFunc(m_cDistParam);
   m_pcRdCost->setCostScale(0);
   uiDist += m_pcRdCost->getCostOfVectorWithBiPre(L0_InitMv, L1_InitMv, L0_MVP, L1_MVP, 2);
-  
+
     // initial MV and CST
   Mv         L0_MvTemp  = L0_InitMv;
   Mv         L1_MvTemp  = L1_InitMv;
   Distortion uiCostBest = uiDist;
-  L0_finalMv            = L0_InitMv;
-  L1_finalMv            = L1_InitMv;
   //Pel *L0_filteredBlock;
   //Pel *L1_filteredBlock;
   /////////////////////////////
@@ -6685,7 +6717,7 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
      *********************************************************************************/
     // get Error Matrix
     const Pel *pOrg  = oriPxl.buf;
-    Pel *      pPred = Aver_prePxl.bufs[0].buf;
+    Pel *      pPred = m_filteredBlock[0][0][2];
      //printf("\nFirst  Pre: \n");
      // for (int j = 0; j < 16; j++)
      // {
@@ -6703,23 +6735,23 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
         piError[i + j * width] = pOrg[i] - pPred[i];
       }
       pOrg += oriStride;
-      pPred += Aver_prePxl.bufs[0].stride;
+      pPred += width;
     }
     //// get Grads
     //// sobel x direction
     //// -1 0 1
     //// -2 0 2
     //// -1 0 1
-    pPred = Aver_prePxl.bufs[0].buf;   // CSS right ????
-    m_HorizontalSobelFilter((Pel *) L0_prePxl.buf, L0_prePxl.stride, L0_pdDerivate[0], width, width, height);
-    m_HorizontalSobelFilter((Pel *) L1_prePxl.buf, L1_prePxl.stride, L1_pdDerivate[0], width, width, height);
-    //
+    // Pel *const pPred_L1_tmp = L0_prePxl.buf;
+    m_HorizontalSobelFilter( m_filteredBlock[0][0][0], width, L0_pdDerivate[0], width, width, height);
+    m_HorizontalSobelFilter( m_filteredBlock[0][0][1], width, L1_pdDerivate[0], width, width, height);
+
     //// sobel y direction
     //// -1 -2 -1
     ////  0  0  0
     ////  1  2  1
-    m_VerticalSobelFilter((Pel *) L0_prePxl.buf, L0_prePxl.stride, L0_pdDerivate[1], width, width, height);
-    m_VerticalSobelFilter((Pel *) L1_prePxl.buf, L1_prePxl.stride, L1_pdDerivate[1], width, width, height);
+    m_VerticalSobelFilter(m_filteredBlock[0][0][0], width, L0_pdDerivate[1], width, width, height);
+    m_VerticalSobelFilter(m_filteredBlock[0][0][1], width, L1_pdDerivate[1], width, width, height);
     //// get L0 mv
     {
       ////// solve delta x and y
@@ -6825,15 +6857,27 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
     // L0 Pre
     xGetPre_fme(L0_MvTemp, L0_cStruct, true); 
     xGetPre_fme(L1_MvTemp, L1_cStruct, false); 
-    CPelBuf a = CPelBuf(m_filteredBlock[0][0][0], width, pu.lumaSize());
-    CPelBuf b = CPelBuf(m_filteredBlock[0][0][1], width, pu.lumaSize());
+    // CPelBuf a = CPelBuf(m_filteredBlock[0][0][0], width, pu.lumaSize());
+    // CPelBuf b = CPelBuf(m_filteredBlock[0][0][1], width, pu.lumaSize());
 
     //Aver_prePxl.addAvg(CPelBuf(m_filteredBlock[0][0][0], oriStride, pu.lumaSize()),
     //                   CPelBuf(m_filteredBlock[0][0][1], oriStride, pu.lumaSize()), clpRng);
 
-    Aver_prePxl.bufs[0].addWeightedAvg_bi(a, b, clpRng,2);
+    // Aver_prePxl.bufs[0].addWeightedAvg_bi(a, b, clpRng,2);
+    pPredL0 = m_filteredBlock[0][0][0];
+    pPredL1 = m_filteredBlock[0][0][1];
+    pPredBi = m_filteredBlock[0][0][2];
+    for (int j = 0; j < Bi_prePxl.height; j++){
+      for (int i = 0; i < Bi_prePxl.width; i++){
+        pPredBi[i] = (pPredL0[i] + pPredL1[i] + 1) >> 1;
+      }
+      pPredL0 += width;
+      pPredL1 += width;
+      pPredBi += width;
+    }
+          // return;
     // get new Mv CST
-    m_cDistParam.cur.buf = Aver_prePxl.bufs[0].buf; 
+    m_cDistParam.cur.buf = m_filteredBlock[0][0][2];
       // printf("\nsecond  Pre: \n");
       //for (int j = 0; j < 16; j++)
       // {
@@ -6843,7 +6887,7 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
       //  }
       //   printf("\n");
       // }
-    m_pcRdCost->setDistParam(m_cDistParam, oriPxl, Aver_prePxl.bufs[0].buf, Aver_prePxl.bufs[0].stride, m_lumaClpRng.bd,
+    m_pcRdCost->setDistParam(m_cDistParam, oriPxl, m_filteredBlock[0][0][2], width, m_lumaClpRng.bd,
                              COMPONENT_Y, 0, 1, true);
     Distortion uiCostTemp = m_cDistParam.distFunc(m_cDistParam);
      //printf("\nSecond :   CST_D : %06d \n", (int) uiCostTemp);
@@ -6862,6 +6906,10 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
       }*/
       L0_finalMv = L0_MvTemp;
       L1_finalMv = L1_MvTemp;
+      L0_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
+      L1_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
+      // return;
+      // printf("\t\t\t\t\t\t\t\t====== inter =========\n");
       //L0_finalMv = L0_InitMv;
       //L1_finalMv = L0_InitMv;
 
@@ -6869,6 +6917,7 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
        //printf("L1_Initial : (%03d,%03d)  FNL   (%03d,%03d)  MVP  (%03d,%03d) \n",L1_InitMv.hor, L1_InitMv.ver, L1_MvTemp.hor, L1_MvTemp.ver, L1_MVP.hor, L1_MVP.ver);
     }
   }
+  return;
 }
 
 void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,

@@ -56,8 +56,8 @@ cleanall: clean
 update:
 	mkdir -p  $(CSTR_DIR_PRJ)/build ;\
 	cd        $(CSTR_DIR_PRJ)/build ;\
-	cmake ..                           ;\
-	make  -j4
+	cmake ..                        ;\
+	make  -j32
 
 create: update
 	mkdir -p  ${CSTR_SESSION}
@@ -72,7 +72,7 @@ create: update
 
 run: create
 	cd ${CSTR_SESSION}    ;\
-	    ./${CSTR_CDC}.sh
+	chmod +x ./${CSTR_CDC}.sh && ./${CSTR_CDC}.sh
 
 stop:
 	- killall -9 ${CSTR_CDC}

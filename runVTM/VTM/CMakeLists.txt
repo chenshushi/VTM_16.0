@@ -1,6 +1,7 @@
 # minimum required cmake version
 cmake_minimum_required( VERSION 3.5 FATAL_ERROR )
-
+SET(CMAKE_C_COMPILER /home/chenss/tools/gcc_9.4.0/bin/gcc)
+SET(CMAKE_CXX_COMPILER /home/chenss/tools/gcc_9.4.0/bin/g++)
 # project name
 if( EXTENSION_360_VIDEO )
   project( NextSoftware360 )
