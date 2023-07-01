@@ -5264,9 +5264,7 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
       ruiBits += uiMvBits;
       ruiCost = (Distortion)(floor(fWeight * ((double) ruiCost - (double) m_pcRdCost->getCost(uiMvBits)))
                            + (double) m_pcRdCost->getCost(ruiBits));
-      if(val_L1 == 1){
         Lano_finalMv = finish;
-      }
       // L0_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
       // L1_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
     }
@@ -5296,7 +5294,7 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
     // fWeight = xGetMEDistortionWeight(pu.cu->BcwIdx, eRefPicList);
   }
   m_cDistParam.isBiPred = bBi;
-
+  return;
   //  Search key pattern initialization
   CPelBuf  tmpPattern   = pBuf->Y();
   CPelBuf* pcPatternKey = &tmpPattern;
@@ -6602,8 +6600,10 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
   uiDist += m_pcRdCost->getCostOfVectorWithBiPre(L0_InitMv, L1_InitMv, L0_MVP, L1_MVP, 2);
 
     // initial MV and CST
-  Mv         L0_MvTemp  = L0_InitMv;
-  Mv         L1_MvTemp  = L1_InitMv;
+  Mv         L0_MvTemp;
+  Mv         L1_MvTemp;
+  Mv         L0_MvVBest = L0_InitMv;
+  Mv         L1_MvVBest = L1_InitMv;
   Distortion uiCostBest = uiDist;
   //Pel *L0_filteredBlock;
   //Pel *L1_filteredBlock;
@@ -6715,6 +6715,8 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
     /*********************************************************************************
      *                         use gradient to update mv
      *********************************************************************************/
+    L0_MvTemp  = L0_MvVBest;
+    L1_MvTemp  = L1_MvVBest;
     // get Error Matrix
     const Pel *pOrg  = oriPxl.buf;
     Pel *      pPred = m_filteredBlock[0][0][2];
@@ -6759,7 +6761,7 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
       {
         memset(&L0_i64EqualCoeff[row][0], 0, iParaNum * sizeof(int64_t));
       }
-
+          // return;
       xEqualCoeffComputer_fme(piError, width, L0_pdDerivate, width, L0_i64EqualCoeff, width, height);
 
       for (int row = 0; row < iParaNum; row++)
@@ -6792,7 +6794,7 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
       TMP.hor = Clip3(-64, 64, TMP.hor);
       TMP.ver = Clip3(-64, 64, TMP.ver);
       TMP.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
-      //  printf("Initial : (%03d,%03d)  dlt   (%03d,%03d) \n", MvTemp.hor, MvTemp.ver, TMP.hor, TMP.ver);
+      Mv fnl_delete = (L0_MvTemp + TMP);
       L0_MvTemp += TMP;
       // printf("!!!!!Final : (%03d,%03d) \n\n", MvTemp.hor, MvTemp.ver);
       L0_MvTemp.hor = Clip3(MV_MIN, MV_MAX, L0_MvTemp.hor);
@@ -6837,14 +6839,16 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
       // printf("FME       Haf MV :   (%03d,%03d)\n", rcMvHalf.hor * 2, rcMvHalf.ver * 2 );
       // printf("FME       Qua MV :   (%03d,%03d)\n", FME_TVM.hor, FME_TVM.ver);
       //  printf("Opitical Dlt MV :   ( %d,%d)\n\n", acDeltaMv[0].hor, acDeltaMv[0].ver);
-      if (bi) {
-        TMP.hor = -TMP.hor;
-        TMP.ver = -TMP.ver;
-      }
+      // if (bi) {
+      //   TMP.hor = -TMP.hor;
+      //   TMP.ver = -TMP.ver;
+      // }
       TMP.hor = Clip3(-64, 64, TMP.hor);
       TMP.ver = Clip3(-64, 64, TMP.ver);
       TMP.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
-      //  printf("Initial : (%03d,%03d)  dlt   (%03d,%03d) \n", MvTemp.hor, MvTemp.ver, TMP.hor, TMP.ver);
+      Mv fnl_delete = (L1_MvTemp + TMP);
+      // TMP.hor = 0;
+      // TMP.ver = 0;
       L1_MvTemp += TMP;
       // printf("!!!!!Final : (%03d,%03d) \n\n", MvTemp.hor, MvTemp.ver);
       L1_MvTemp.hor = Clip3(MV_MIN, MV_MAX, L1_MvTemp.hor);
@@ -6904,8 +6908,10 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
       {
         break;
       }*/
-      L0_finalMv = L0_MvTemp;
-      L1_finalMv = L1_MvTemp;
+      L0_MvVBest = L0_MvTemp;
+      L1_MvVBest = L1_MvTemp;
+      L0_finalMv = L0_MvVBest;
+      L1_finalMv = L1_MvVBest;
       L0_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
       L1_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
       // return;
