@@ -113,7 +113,7 @@ LIST_SEQ=(
 )
 
 # encoder
-LIST_DAT_Q_P=($(seq 37 5 37))                      #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+LIST_DAT_Q_P=($(seq 22 5 37))                      #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 DATA_PRD_INTRA=-1                               #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 
 
