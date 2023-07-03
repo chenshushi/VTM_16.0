@@ -29,7 +29,7 @@
 #*** PARAMETER *****************************************************************
 # directory or file name
 CSTR_CDC=VTM
-CSTR_DIR_SRC="/home/share/VVC"    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT   E:\DOWNLOAD\SEQUENCE\HM
+CSTR_DIR_SRC="/home/share/VVC_CTC"    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT   E:\DOWNLOAD\SEQUENCE\HM
 CSTR_DIR_DST="dump"                                       #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_LOG_RUN="$CSTR_DIR_DST/runs.log"                     #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_LOG_JOB="$CSTR_DIR_DST/jobs.log"                     #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
