@@ -40,8 +40,7 @@ help:
 	@ echo "  CSTR_TAG could be any string you want, for example: CSTR_TAG=Test                        "
 
 clean:
-	mkdir -p $(CSTR_DIR_PRJ)/build        ;\
-	cd $(CSTR_DIR_PRJ)/build              ;\
+	cd $(CSTR_DIR_PRJ)    ;\
 	make clean
 
 cleanall: clean
@@ -51,7 +50,7 @@ update:
 	cd $(CSTR_DIR_PRJ)                    ;\
 	mkdir build                           ;\
 	cd build                              ;\
-	cmake .. -DCMAKE_BUILD_TYPE=Release   ;\
+	cmake .. -DCMAKE_BUILD_TYPE=Release   -DCMAKE_C_COMPILER=/home/chenss/Tools/bin/gcc -DCMAKE_CXX_COMPILER=/home/chenss/Tools/bin/g++   ;\
 	make -j 8
 
 create_enc : update
