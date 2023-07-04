@@ -50,7 +50,7 @@ update:
 	cd $(CSTR_DIR_PRJ)                    ;\
 	mkdir build                           ;\
 	cd build                              ;\
-	cmake .. -DCMAKE_BUILD_TYPE=Release   -DCMAKE_C_COMPILER=/home/chenss/Tools/bin/gcc -DCMAKE_CXX_COMPILER=/home/chenss/Tools/bin/g++   ;\
+	cmake .. -DCMAKE_BUILD_TYPE=Release   -DCMAKE_C_COMPILER=/home/chenss/tools/gcc_9.4.0/bin/gcc -DCMAKE_CXX_COMPILER=/home/chenss/tools/gcc_9.4.0/bin/g++   ;\
 	make -j 8
 
 create_enc : update
