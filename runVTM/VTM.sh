@@ -29,7 +29,7 @@
 #*** PARAMETER *****************************************************************
 # directory or file name
 CSTR_CDC="VTM"
-CSTR_DIR_SRC="/media/vip/F69022E79022AE55/chenss/SEQUENCE_VTM/VVC"    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+CSTR_DIR_SRC="/home/share/VVC/"    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT   E:\DOWNLOAD\SEQUENCE\HM
 CSTR_DIR_DST="dump"                                       #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_LOG_RUN="$CSTR_DIR_DST/runs.log"                     #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_LOG_JOB="$CSTR_DIR_DST/jobs.log"                     #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
@@ -76,39 +76,43 @@ LIST_SEQ_AVAILABLE=(
     "BasketballDrillText"   500     50      832     480     8
 )
 LIST_SEQ=(
-    # # A1
-    # "FoodMarket4"           100     60      3840    2160    10
-    # "Tango2"                100     60      3840    2160    10
-    # "Campfire"              100     30      3840    2160    10
-    # # A2
-    # "ParkRunning3"          100     50      3840    2160    10
-    # "CatRobot"              100     60      3840    2160    10
-    # "DaylightRoad2"         100     60      3840    2160    10
-    # # B
-    # "MarketPlace"           100     60      1920    1080    10
-    # "BasketballDrive"       100     50      1920    1080    8
-    # "BQTerrace"             100     60      1920    1080    8
-    # "Cactus"                100     50      1920    1080    8
-    # "RitualDance"           100     60      1920    1080    10
-    # # # C
-    # "BasketballDrill"       100     50      832     480     8
-    # "BQMall"                100     60      832     480     8
-    # "PartyScene"            100     50      832     480     8
-    # "RaceHorsesC"           100     30      832     480     8
     # # # D
-    "BasketballPass"        100     50      416     240     8
-    # "BlowingBubbles"        100     50      416     240     8
-    # "BQSquare"              100     60      416     240     8
-    # "RaceHorses"            100     30      416     240     8
+    # "BasketballPass"        300     50      416     240     8
+    # "BlowingBubbles"        300     50      416     240     8
+    # "BQSquare"              300     60      416     240     8
+    # "RaceHorses"            300     30      416     240     8
+    # # C
+    # "BasketballDrill"       300     50      832     480     8
+    # "BQMall"                300     60      832     480     8
+    # "PartyScene"            300     50      832     480     8
+    # "RaceHorsesC"           65     30      832     480     8
+    # # F (screen content)
+    "ArenaOfValor"          65     60      1920    1080    8
+    "SlideEditing"          65     30      1280    720     8
+    "SlideShow"             65     20      1280    720     8
+    "BasketballDrillText"   65     50      832     480     8
+    # # B
+    # "MarketPlace"           65     60      1920    1080    10
+    # "BasketballDrive"       65     50      1920    1080    8
+    # "BQTerrace"             65     60      1920    1080    8
+    # "Cactus"                65     50      1920    1080    8
+    # "RitualDance"           65     60      1920    1080    10
+    # # A1
+    # "FoodMarket4"           300     60      3840    2160    10
+    # "Tango2"                300     60      3840    2160    10
+    # "Campfire"              300     30      3840    2160    10
+    # # # A2
+    # "ParkRunning3"          65     50      3840    2160    10
+    # "CatRobot"              65     60      3840    2160    10
+    # "DaylightRoad2"         65     60      3840    2160    10
+
+
+
     # # E
     # "FourPeople"            100     60      1280    720     8
     # "Johnny"                100     60      1280    720     8
     # "KristenAndSara"        100     60      1280    720     8
-    # # screen content
-    # "ArenaOfValor"          100     60      1920    1080    8
-    # "SlideEditing"          100     30      1280    720     8
-    # "SlideShow"             100     20      1280    720     8
-    # "BasketballDrillText"   100     50      832     480     8
+
 )
 
 # encoder
@@ -175,11 +179,13 @@ do
 
         # make directory
         mkdir -p $CSTR_DIR_DST_FUL
-
+        # -c                  cfg/encoder_randomaccess_vtm.cfg        \
+        # -c                  cfg/encoder_lowdelay_P_vtm.cfg          \
         # encode (gop, common)
         ./${CSTR_CDC}                                                 \
                                                                       \
-            -c                  cfg/encoder_lowdelay_P_vtm.cfg        \
+            -c                  cfg/encoder_randomaccess_vtm.cfg      \
+            -c                  cfg/per-class/classF.cfg              \
                                                                       \
                     --InputFile=${CSTR_SRC}/${CSTR_SRC_YUV}           \
             --FramesToBeEncoded=${NUMB_FRA}                           \
@@ -232,16 +238,16 @@ do
         md5sum ${CSTR_DIR_DST_FUL}${CSTR_CDC}.bin | tee -a $CSTR_LOG_RUN
 
         # update info (psnr)
-        ./script/getInfo.py ${CSTR_DIR_DST_FUL}${CSTR_CDC}.log >> $CSTR_LOG_RLT_PSNR
+        chmod +x ./script/getInfo.py && ./script/getInfo.py ${CSTR_DIR_DST_FUL}${CSTR_CDC}.log >> $CSTR_LOG_RLT_PSNR
         echo "$CSTR_DIR_SUB" >> $CSTR_LOG_RLT_PSNR
         # process time
-        chmod +x ./script/getTime.py && ./script/getTime.py ${CSTR_DIR_DST_FUL}${CSTR_CDC}.log >> $CSTR_LOG_RLT_time
+        # chmod +x ./script/getTime.py && ./script/getTime.py ${CSTR_DIR_DST_FUL}${CSTR_CDC}.log >> $CSTR_LOG_RLT_time
         echo "$CSTR_DIR_SUB" >> $CSTR_LOG_RLT_time
     done
 
     # update bd rate
-    chmod +x ./script/getBdRate.py && ./script/getBdRate.py script/anchor_100f_LP.log $CSTR_LOG_RLT_PSNR > $CSTR_LOG_RLT_BDRT
+    # chmod +x ./script/getBdRate.py && ./script/getBdRate.py script/anchor_100f_LP.log $CSTR_LOG_RLT_PSNR > $CSTR_LOG_RLT_BDRT
 
 done
     # uodate enc time
-    chmod +x ./script/getEncTime.py && ./script/getEncTime.py script/anchor_time_100f_LP.log  $CSTR_LOG_RLT_time > $CSTR_LOG_RLT_ENCT
+    # chmod +x ./script/getEncTime.py && ./script/getEncTime.py script/anchor_time_100f_LP.log  $CSTR_LOG_RLT_time > $CSTR_LOG_RLT_ENCT

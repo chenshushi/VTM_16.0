@@ -72,7 +72,7 @@ create: update
 
 run: create
 	cd ${CSTR_SESSION}    ;\
-	    ./${CSTR_CDC}.sh
+	chmod +x ./${CSTR_CDC}.sh && ./${CSTR_CDC}.sh
 
 stop:
 	- killall -9 ${CSTR_CDC}
