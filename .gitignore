@@ -1,4 +1,5 @@
 .vscode
+/runSCC/session*
 /runVTM/session*
 /runVTM/sessionTest/*
 /runVTM/VTM/bin
