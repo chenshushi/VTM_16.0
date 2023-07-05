@@ -76,40 +76,39 @@ LIST_SEQ_AVAILABLE=(
     "BasketballDrillText"   501     50      832     480     8
 )
 LIST_SEQ=(
-    # # D
-    # "BasketballPass"        300     50      416     240     8
-    # "BlowingBubbles"        300     50      416     240     8
-    # "BQSquare"              300     60      416     240     8
-    # "RaceHorses"            300     30      416     240     8
-    # # C
-    # "BasketballDrill"       300      50      832     480     8
-    # "BQMall"                300      60      832     480     8
-    # "PartyScene"            300      50      832     480     8
-    # "RaceHorsesC"           300      30      832     480     8
-    # # E
-    # "FourPeople"            300     60      1280    720     8
-    # "Johnny"                300     60      1280    720     8
-    # "KristenAndSara"        300     60      1280    720     8
-    
-    # # screen content
-    # "ArenaOfValor"          300     60      1920    1080    8
-    # "SlideEditing"          300     30      1280    720     8
-    # "SlideShow"             300     20      1280    720     8
-    # "BasketballDrillText"   300     50      832     480     8
-    # # B
-    # "MarketPlace"           300      60      1920    1080    10
-    # "BasketballDrive"       300      50      1920    1080    8
-    # "BQTerrace"             300      60      1920    1080    8
-    # "Cactus"                300      50      1920    1080    8
-    # "RitualDance"           300      60      1920    1080    10
-    # # A1
-    # "FoodMarket4"           300     60      3840    2160    10
-    # "Tango2"                300     60      3840    2160    10
-    "Campfire"              300     30      3840    2160    10
-    # # A2
-    # "ParkRunning3"          300     50      3840    2160    10
-    # "CatRobot"              300     60      3840    2160    10
-    # "DaylightRoad2"         300     60      3840    2160    10
+    # D
+    "BasketballPass"        65     50      416     240     8
+    "BlowingBubbles"        65     50      416     240     8
+    "BQSquare"              65     60      416     240     8
+    "RaceHorses"            65     30      416     240     8
+    # C
+    "BasketballDrill"       65      50      832     480     8
+    "BQMall"                65      60      832     480     8
+    "PartyScene"            65      50      832     480     8
+    "RaceHorsesC"           65      30      832     480     8
+    # E
+    "FourPeople"            65     60      1280    720     8
+    "Johnny"                65     60      1280    720     8
+    "KristenAndSara"        65     60      1280    720     8
+    # screen content
+    "ArenaOfValor"          65     60      1920    1080    8
+    "SlideEditing"          65     30      1280    720     8
+    "SlideShow"             65     20      1280    720     8
+    "BasketballDrillText"   65     50      832     480     8
+    # B
+    "MarketPlace"           65      60      1920    1080    10
+    "BasketballDrive"       65      50      1920    1080    8
+    "BQTerrace"             65      60      1920    1080    8
+    "Cactus"                65      50      1920    1080    8
+    "RitualDance"           65      60      1920    1080    10
+    # A1
+    "FoodMarket4"           65     60      3840    2160    10
+    "Tango2"                65     60      3840    2160    10
+    "Campfire"              65     30      3840    2160    10
+    # A2
+    "ParkRunning3"          65     50      3840    2160    10
+    "CatRobot"              65     60      3840    2160    10
+    "DaylightRoad2"         65     60      3840    2160    10
 )
 
 # encoder
@@ -151,7 +150,28 @@ do
     # derive parameter
     CSTR_SRC=$CSTR_DIR_SRC/$CSTR_SEQ/
     CSTR_SRC_YUV=$(ls $CSTR_DIR_SRC/$CSTR_SEQ)
-
+    # set DATA_PRD_INTRA as CTC
+    if [ ${DATA_FPS} == 20 ]
+    then
+        DATA_PRD_INTRA=32
+    elif [ ${DATA_FPS} == 24 ]
+    then
+        DATA_PRD_INTRA=32
+    elif [ ${DATA_FPS} == 30 ]
+    then
+        DATA_PRD_INTRA=32
+    elif [ ${DATA_FPS} == 50 ]
+    then
+        DATA_PRD_INTRA=64
+    elif [ ${DATA_FPS} == 60 ]
+    then
+        DATA_PRD_INTRA=64
+    elif [ ${DATA_FPS} == 100 ]
+    then
+        DATA_PRD_INTRA=96
+    else
+        DATA_PRD_INTRA=32
+    fi
     # log
     echo ""
     echo "encoding $CSTR_SRC ..."
@@ -241,7 +261,7 @@ do
     done
 
     # update bd rate
-    chmod +x ./script/getBdRate.py  && ./script/getBdRate.py script/anchor.log $CSTR_LOG_RLT_PSNR > $CSTR_LOG_RLT_BDRT
+    # chmod +x ./script/getBdRate.py  && ./script/getBdRate.py script/anchor.log $CSTR_LOG_RLT_PSNR > $CSTR_LOG_RLT_BDRT
     # uodate enc time
     # chmod +x ./script/getEncTime.py && ./script/getEncTime.py script/anchor_time.log  $CSTR_LOG_RLT_time > $CSTR_LOG_RLT_ENCT
 done
