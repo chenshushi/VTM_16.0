@@ -9,6 +9,7 @@
 /runVTM/VTM/build/Makefile
 /runVTM/VTM/build/source
 /runVTM/VTM/windows/.vs
+/runVTM/VTM/windows/enc_*
 /runVTM/VTM/windows/CMake*git 
 /runVTM/VTM/windows/cmake*
 /runVTM/VTM/windows/source
