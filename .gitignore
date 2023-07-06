@@ -10,6 +10,7 @@
 /runVTM/VTM/windows/CMake*git 
 /runVTM/VTM/windows/cmake*
 /runVTM/VTM/windows/source
+/runVTM/VTM/windows/enc_*
 /runVTM/VTM/windows/ALL_BUILD*
 /runVTM/VTM/windows/Debug
 /runVTM/VTM/windows/xkcdc.dir
