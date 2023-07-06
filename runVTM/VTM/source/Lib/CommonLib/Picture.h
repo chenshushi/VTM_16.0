@@ -54,7 +54,10 @@
 
 class SEI;
 class AQpLayer;
-
+extern Mv  TmvpEstimation;
+extern Mv  FmvDat[128/4+2][128/4+2][100];
+extern int FmvNum[128/4+2][128/4+2];
+extern bool amvrFlg;
 typedef std::list<SEI*> SEIMessages;
 
 #define M_BUFS(JID,PID) m_bufs[PID]

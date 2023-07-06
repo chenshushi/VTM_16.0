@@ -47,7 +47,9 @@
 #include <algorithm>
 
 // CS tools
-
+Mv  TmvpEstimation = Mv(0,0);
+Mv  FmvDat[128/4+2][128/4+2][100];
+int FmvNum[128/4+2][128/4+2];
 
 uint64_t CS::getEstBits(const CodingStructure &cs)
 {
@@ -1448,6 +1450,7 @@ void PU::getInterMergeCandidates( const PredictionUnit &pu, MergeCtx& mrgCtx,
     {
       dir     |= 1;
       mrgCtx.mvFieldNeighbours[2 * arrayAddr].setMvField(cColMv, refIdx);
+      TmvpEstimation    = cColMv;
 #if GDR_ENABLED
       if (isEncodeGdrClean)
       {

@@ -52,7 +52,7 @@
 
 #include <math.h>
 #include <limits>
-
+bool amvrFlg = false;
 #define error_surface_SATD
 // #define error_surface_SAD
  //! \ingroup EncoderLib
@@ -5890,6 +5890,108 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
     }
   }
 
+  // Estimation MVP
+  if (!bBi && !amvrFlg) {
+    // method 1: MVP from IME&FME
+    Mv MmpList[30];
+    int mvpIdx = 0;
+    int posY, posX, mvNum;
+    int loopStart, loopEnd;
+    int puPosY = pu.ly();
+    int puPosX = pu.lx();
+    int puSizX = pu.lwidth();
+    int puSizY = pu.lheight();
+    // A0
+    posX = puPosX - 4;
+    posY = puPosY + puSizY;
+    {
+      mvNum = FmvNum[1+posY/4][1+posX/4];
+      loopStart   = (mvNum < 5) ? 0 : mvNum - 5;
+      loopEnd = mvNum;
+      for (int i = loopStart; i < loopEnd; i++){
+        if (mvpIdx>100) break;
+        MmpList[mvpIdx]=FmvDat[1+posY][1+posX][i];
+        mvpIdx++;
+      }
+    }
+    // A1
+    posX = puPosX - 4;
+    posY = puPosY + puSizY - 4;
+    {
+      mvNum = FmvNum[1+posY/4][1+posX/4];
+      loopStart   = (mvNum < 5) ? 0 : mvNum - 5;
+      loopEnd = mvNum;
+      for (int i = loopStart; i < loopEnd; i++){
+        if (mvpIdx>100) break;
+        MmpList[mvpIdx]=FmvDat[1+posY][1+posX][i];
+        mvpIdx++;
+      }
+    }
+    // B0
+    posX = puPosX + puSizX;
+    posY = puPosY - 4;
+    {
+      mvNum = FmvNum[1+posY/4][1+posX/4];
+      loopStart   = (mvNum < 5) ? 0 : mvNum - 5;
+      loopEnd = mvNum;
+      for (int i = loopStart; i < loopEnd; i++){
+        if (mvpIdx>100) break;
+        MmpList[mvpIdx]=FmvDat[1+posY][1+posX][i];
+        mvpIdx++;
+      }
+    }
+    // B1
+    posX = puPosX + puSizX - 4;
+    posY = puPosY - 4;
+    {
+      mvNum = FmvNum[1+posY/4][1+posX/4];
+      loopStart   = (mvNum < 5) ? 0 : mvNum - 5;
+      loopEnd = mvNum;
+      for (int i = loopStart; i < loopEnd; i++){
+        if (mvpIdx>100) break;
+        MmpList[mvpIdx]=FmvDat[1+posY][1+posX][i];
+        mvpIdx++;
+      }
+    }
+    // B2
+    posX = puPosX - 4;
+    posY = puPosY - 4;
+    {
+      mvNum = FmvNum[1+posY/4][1+posX/4];
+      loopStart   = (mvNum < 5) ? 0 : mvNum - 5;
+      loopEnd = mvNum;
+      for (int i = loopStart; i < loopEnd; i++){
+        if (mvpIdx>100) break;
+        MmpList[mvpIdx]=FmvDat[1+posY][1+posX][i];
+        mvpIdx++;
+      }
+    }
+    // MVP_ME
+    int curCstMvd = 0;
+    int bstCstMvd = 999999999;
+    Mv bestMvp;
+    for (int i = 0; i < mvpIdx; i++){
+      curCstMvd = abs(MmpList[i].hor - rcMv.hor)
+                + abs(MmpList[i].ver - rcMv.ver);
+      if (curCstMvd < bstCstMvd){
+        bstCstMvd = curCstMvd;
+        bestMvp = MmpList[i];
+      }
+    }
+    // True MVP
+    Mv TrueMVP = rcMvPred;
+    // method 1: (%d,%d)
+    int method_1 = abs(TmvpEstimation.hor - TrueMVP.hor)
+                 + abs(TmvpEstimation.ver - TrueMVP.ver);
+    int method_2 = abs(bestMvp.hor        - TrueMVP.hor)
+                 + abs(bestMvp.ver        - TrueMVP.ver);
+    printf("MVP: (%d,%d) TMVP: (%d,%d) MVP_ME(%d,%d)\n",
+          rcMvPred.hor      ,rcMvPred.ver,
+          TmvpEstimation.hor,TmvpEstimation.ver,
+          bestMvp.hor       , bestMvp.ver);
+    printf("TMVP_cst_1:%d TMVP_cst_2:%d \n", method_1, method_2);
+  }
+
   DTRACE( g_trace_ctx, D_ME, "%d %d %d :MECostFPel<L%d,%d>: %d,%d,%dx%d, %d", DTRACE_GET_COUNTER( g_trace_ctx, D_ME ), pu.cu->slice->getPOC(), 0, ( int ) eRefPicList, ( int ) bBi, pu.Y().x, pu.Y().y, pu.Y().width, pu.Y().height, ruiCost );
   // sub-pel refinement for sub-pel resolution
   if ( pu.cu->imv == 0 || pu.cu->imv == IMV_HPEL )
@@ -5936,6 +6038,23 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
 #else
     xPatternSearchIntRefine( pu, cStruct, rcMv, rcMvPred, riMVPIdx, ruiBits, ruiCost, amvpInfo, fWeight);
 #endif
+  }
+  // update the best MV of MotionEstimation
+  if (!amvrFlg)
+  {
+    int posY = pu.ly();
+    int posX = pu.lx();
+    int width = pu.lwidth();
+    int height = pu.lheight();
+    for (int j = posY; j < posY+height; j+=4) {
+      for (int i = posX; i < posY+width; i+=4) {
+        int posSubY = j / 4;
+        int posSubX = i / 4;
+        //
+        FmvDat[1+posSubY][1+posSubX][FmvNum[1+posSubY][1+posSubX]] = rcMv;
+        // FmvNum[j][i] += 1;   // don't need to undate the num , because xCheckRDCostMerge2Nx2N() have done.
+      }
+    }
   }
   DTRACE(g_trace_ctx, D_ME, "   MECost<L%d,%d>: %6d (%d)  MV:%d,%d\n", (int)eRefPicList, (int)bBi, ruiCost, ruiBits, rcMv.getHor() << 2, rcMv.getVer() << 2);
 }

@@ -1883,6 +1883,14 @@ void EncSlice::encodeCtus( Picture* pcPic, const bool bCompressEntireSlice, cons
 
     if (pCfg->getSwitchPOC() != pcPic->poc || ctuRsAddr >= pCfg->getDebugCTU())
     {
+      for (int j = 0; j < 32+2; j++) {
+        for (int i = 0; i < 32+2; i++) {
+          for (int z = 0; z < 100; z++) {
+            FmvDat[j][i][z] = Mv(0,0);
+          }
+          FmvNum[j][i] = 0;
+        }
+      }
       m_pcCuEncoder->compressCtu(cs, ctuArea, ctuRsAddr, prevQP, currQP);
     }
 #if K0149_BLOCK_STATISTICS

@@ -96,7 +96,7 @@ LIST_SEQ=(
     # "PartyScene"            10     50      832     480     8
     # "RaceHorsesC"           10     30      832     480     8
     # # # D
-    "BasketballPass"        100     50      416     240     8
+    "BasketballPass"        2     50      416     240     8
     # "BlowingBubbles"        10     50      416     240     8
     # "BQSquare"              10     60      416     240     8
     # "RaceHorses"            10     30      416     240     8

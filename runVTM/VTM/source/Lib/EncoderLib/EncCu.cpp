@@ -781,7 +781,9 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
         if (!skipAltHpelIF)
         {
           tempCS->bestCS = bestCS;
+          amvrFlg = true;
           xCheckRDCostInterIMV(tempCS, bestCS, partitioner, currTestMode, bestIntPelCost);
+          amvrFlg = false;
           tempCS->bestCS = nullptr;
 #if JVET_Y0152_TT_ENC_SPEEDUP
           splitRdCostBest[CTU_LEVEL] = bestCS->cost;
@@ -831,6 +833,23 @@ void EncCu::xCompressCU( CodingStructure*& tempCS, CodingStructure*& bestCS, Par
     {
       xCheckRDCostMerge2Nx2N( tempCS, bestCS, partitioner, currTestMode );
       CodingUnit* cu = bestCS->getCU(partitioner.chType);
+      // update the best MV of Merge
+      {
+        PredictionUnit* pu = bestCS->getPU(partitioner.chType);
+        Mv MergeMV = pu->mv[L0];
+        int posY = pu->ly();
+        int posX = pu->lx();
+        int width = pu->lwidth();
+        int height = pu->lheight();
+        for (int j = posY; j < posY+height; j+=4) {
+          for (int i = posX; i < posY+width; i+=4) {
+            int posSubY = j / 4;
+            int posSubX = i / 4;
+            FmvDat[1+posSubY][1+posSubX][FmvNum[1+posSubY][1+posSubX]] = MergeMV;
+            FmvNum[1+posSubY][1+posSubX] += 1;
+          }
+        }
+      }
       if (cu)
       {
         cu->mmvdSkip = cu->skip == false ? false : cu->mmvdSkip;
