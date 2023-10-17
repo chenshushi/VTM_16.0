@@ -27,7 +27,7 @@
 #-------------------------------------------------------------------------------
 
 #*** PARAMETER *****************************************************************
-CSTR_CDC     ?= VTM_Anchor
+CSTR_CDC     ?= VTM_test
 CSTR_DIR_PRJ ?= ./VTM
 CSTR_TAG     ?= Test
 CSTR_SESSION := session$(CSTR_TAG)

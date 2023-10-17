@@ -17,8 +17,8 @@
 #*** PARAMETER *****************************************************************
 # directory or file name
 CSTR_CDC="VVC_CTC_ENC"
-CSTR_DIR_ORI="/home/share/SCC_CTC/YUV444" 
-CSTR_DIR_SRC="/home/share/SCC_CTC/YUV444"                 #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
+CSTR_DIR_ORI="/home/share/SCC" 
+CSTR_DIR_SRC="/home/share/SCC"                 #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_DIR_DST="dump"                                       #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_LOG_RUN="$CSTR_DIR_DST/runs.log"                     #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_LOG_JOB="$CSTR_DIR_DST/jobs.log"                     #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
@@ -59,7 +59,7 @@ LIST_SEQ_USED=(
                        "F"    "SlideShow"             64   20    1280    720      8      "M"     "M"    "M"
                        "F"    "ArenaOfValor"          64   60    1920    1080     8      "M"     "M"    "M"
                        "F"    "Robot"                 64   30    1280    720      8      "M"     "M"    "M"
-                       "F"    "GlassHalf"             64   24    3840    2160     10     "M"     "M"    "M"
+                    #    "F"    "GlassHalf"             64   24    3840    2160     10     "M"     "M"    "M"
                        "F"    "BasketballScreen"      64   60    2560    1440     8      "M"     "M"    "M"
                        "F"    "MissionControl2"       64   60    2560    1440     8      "M"     "M"    "M"
                        "F"    "MissionControl3"       64   60    1920    1080     8      "M"     "M"    "M"
