@@ -3058,6 +3058,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
             xMotionEstimation(pu, origBuf, eRefPicList, cMvPred[refList][refIdxTemp], refIdxTemp,
                               cMvTemp[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
                               aaiMvpIdx[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList], bCleanCandExist);
+                              // printf("inter ME %d,%d\n",cMvTemp[refList][refIdxTemp].hor,cMvTemp[refList][refIdxTemp].ver);
 #else
             xMotionEstimation(pu, origBuf, eRefPicList, cMvPred[refList][refIdxTemp], refIdxTemp,
                               cMvTemp[refList][refIdxTemp], aaiMvpIdx[refList][refIdxTemp], bitsTemp, costTemp,
@@ -3466,14 +3467,24 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
               int refIdx_another = refIdx[refList_another];
 #if GDR_ENABLED
               bCleanCandExist = false;
+              // if ( pu.cu->imv == 0 || pu.cu->imv == IMV_HPEL ){
+              if ( pu.cu->imv == 0 ){
+                xMotionEstimation(pu, origBuf, eRefPicList, cMvPredBi[refList][refIdxTemp], refIdxTemp,
+                                  cMvTemp[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
+                                  aaiMvpIdxBi[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList],
+                                  bCleanCandExist, true, 
+                                  cMvTemp[refList][refIdxTemp], cMvTemp[refList_another][refIdx_another],
+                                  cMvPredBi[refList][refIdxTemp], cMvPredBi[refList_another][refIdx_another],
+                                  cMvTemp[refList][refIdxTemp], cMvTemp[refList_another][refIdx_another]);
+              }
+              else {
+                xMotionEstimation(pu, origBuf, eRefPicList, cMvPredBi[refList][refIdxTemp], refIdxTemp,
+                              cMvTemp[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
+                              aaiMvpIdxBi[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList],
+                              bCleanCandExist, true);
+              }
               // printf("eRefPicList==%d  BME init MV:  [L_cur] idx: %d (%d,%d) [L_another] idx: %d (%d,%d)\n", eRefPicList, refIdxTemp,cMvTemp[refList][refIdxTemp].getHor (),cMvTemp[refList][refIdxTemp].getVer (), refIdx_another,cMvTemp[refList_another][refIdx_another].getHor (), cMvTemp[refList_another][refIdx_another].getVer ());
-              xMotionEstimation(pu, origBuf, eRefPicList, cMvPredBi[refList][refIdxTemp], refIdxTemp,
-                                cMvTemp[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
-                                aaiMvpIdxBi[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList],
-                                bCleanCandExist, true, 
-                                cMvTemp[refList][refIdxTemp], cMvTemp[refList_another][refIdx_another],
-                                cMvPredBi[refList][refIdxTemp], cMvPredBi[refList_another][refIdx_another],
-                                cMvTemp[refList][refIdxTemp], cMvTemp[refList_another][refIdx_another]);
+
 #else
               xMotionEstimation(pu, origBuf, eRefPicList, cMvPredBi[refList][refIdxTemp], refIdxTemp,
                                 cMvTemp[refList][refIdxTemp], aaiMvpIdxBi[refList][refIdxTemp], bitsTemp, costTemp,
@@ -5133,6 +5144,7 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
     rcMv <<= 2;
     rcMv  += ( cMvHalf <<= 1 );
     rcMv  += cMvQter;
+    
     uint32_t uiMvBits = m_pcRdCost->getBitsOfVectorWithPredictor( rcMv.getHor(), rcMv.getVer(), cStruct.imvShift );
     ruiBits += uiMvBits;
     ruiCost = ( Distortion ) ( floor( fWeight * ( ( double ) ruiCost - ( double ) m_pcRdCost->getCost( uiMvBits ) ) ) + ( double ) m_pcRdCost->getCost( ruiBits ) );
@@ -5248,7 +5260,8 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
     cTmpMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_INT);
     m_cDistParam.cur.buf = cStruct.piRefY + (cTmpMv.ver * cStruct.iRefStride) + cTmpMv.hor;
     Distortion uiBestSad = m_cDistParam.distFunc(m_cDistParam);
-    uiBestSad += m_pcRdCost->getCostOfVectorWithPredictor(cTmpMv.hor, cTmpMv.ver, cStruct.imvShift);
+    // uiBestSad += m_pcRdCost->getCostOfVectorWithPredictor(cTmpMv.hor, cTmpMv.ver, cStruct.imvShift);
+    uiBestSad += m_pcRdCost->getCostOfVectorWithBiPre(cTmpMv, Lano_InitMv, Lcur_MVP, Lano_MVP, cStruct.imvShift);
 
     for (int i = 0; i < m_uniMvListSize; i++){
       BlkUniMvInfo* curMvInfo = m_uniMvList + ((m_uniMvListIdx - 1 - i + m_uniMvListMaxSize) % (m_uniMvListMaxSize));
@@ -5270,7 +5283,7 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
       m_cDistParam.cur.buf = cStruct.piRefY + (cTmpMv.ver * cStruct.iRefStride) + cTmpMv.hor;
 
       Distortion uiSad = m_cDistParam.distFunc(m_cDistParam);
-      uiSad += m_pcRdCost->getCostOfVectorWithPredictor(cTmpMv.hor, cTmpMv.ver, cStruct.imvShift);
+      uiSad += m_pcRdCost->getCostOfVectorWithBiPre(cTmpMv, Lano_InitMv, Lcur_MVP, Lano_MVP, cStruct.imvShift);
       if (uiSad < uiBestSad) {
         uiBestSad = uiSad;
         bestInitMv                                 = curMvInfo->uniMvs[eRefPicList][refIdxPred];
@@ -5360,15 +5373,15 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
       Mv begin = Lano_InitMv;
       Mv finish = Lano_finalMv;
 
-      xOpticalFlow(pu, &origBufCopy, &Lcur_cPatternRoi, &Lano_cPatternRoi, Lcur_cStruct, Lano_cStruct, Lcur_InitMv, begin, Lcur_MVP, Lano_MVP, Lcur_finalMv, finish, val_L1);
-         
-      uint32_t uiMvBits = (uint32_t) m_pcRdCost->getCostOfVectorWithBiPre(Lcur_finalMv, finish,Lcur_MVP,Lano_MVP, Lcur_cStruct.imvShift);
+      ruiCost = xOpticalFlow(pu, origBufCopy, eRefPicList, &Lcur_cPatternRoi, &Lano_cPatternRoi, Lcur_cStruct, Lano_cStruct, Lcur_InitMv, begin, Lcur_MVP, Lano_MVP, Lcur_finalMv, finish, val_L1);
+      m_pcRdCost->setCostScale( 2 );
+      uint32_t uiMvBits = (uint32_t) m_pcRdCost->getBitsCostOfVectorWithBiPre(Lcur_finalMv, finish,Lcur_MVP,Lano_MVP, Lcur_cStruct.imvShift);
       ruiBits += uiMvBits;
       ruiCost = (Distortion)(floor(fWeight * ((double) ruiCost - (double) m_pcRdCost->getCost(uiMvBits)))
                            + (double) m_pcRdCost->getCost(ruiBits));
-        Lano_finalMv = finish;
-      // L0_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
-      // L1_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
+      Lano_finalMv = finish;
+      Lcur_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
+      Lano_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
     }
     // if (val_L1 != 1)
     // {
@@ -6469,180 +6482,196 @@ void InterSearch::xGetPre_fme(Mv MvIntial, IntTZSearchStruct cStruct, bool isL0)
   //    printf("\n");
   //}
 }
-void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy, CPelBuf *L0_cPatternRoi,
+
+
+
+void FME_fastForwardHAD_B4(const int *src, int *dst, int shift, int line, int iSkipLine, int iSkipLine2)
+{
+  int j;
+  int E[2], O[2];
+  int add = (shift > 0) ? (1 << (shift - 1)) : 0;
+  int16_t iT[16] __attribute__((unused));
+  // int16_t iT[16];
+    iT[0] =  1 ;
+    iT[1] =  1 ;
+    iT[2] =  1 ;
+    iT[3] =  1 ;
+    iT[4] =  1 ;
+    iT[5] =  -1;
+    iT[6] =  1 ;
+    iT[7] =  -1;
+    iT[8] =  1 ;
+    iT[9] =  1 ;
+    iT[10] = -1;
+    iT[11] = -1;
+    iT[12] =  1;
+    iT[13] = -1;
+    iT[14] = -1;
+    iT[15] = 1;
+  int *pCoef = dst;
+  const int  reducedLine = line - iSkipLine;
+  for (j = 0; j<reducedLine; j++)
+  {
+    // // HAD
+    // /* E and O */
+    E[0] = src[0] + src[1];
+    O[0] = src[0] - src[1];
+    E[1] = src[2] + src[3];
+    O[1] = src[2] - src[3];
+
+    dst[0] = ( E[0] +  E[1] + add) >> shift;
+    dst[line] = (O[0] +  O[1] + add) >> shift;
+    dst[2 * line] = (E[0] -  E[1] + add) >> shift;
+    dst[3 * line] = (O[0] - O[1] + add) >> shift;
+
+    src += 4;
+    dst++;
+  }
+  if (iSkipLine)
+  {
+    dst = pCoef + reducedLine;
+    for (j = 0; j<4; j++)
+    {
+      memset(dst, 0, sizeof(int)*iSkipLine);
+      dst += line;
+    }
+  }
+}
+
+Distortion InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf &origBufCopy, RefPicList eRefPicList, CPelBuf *L0_cPatternRoi,
                                CPelBuf *L1_cPatternRoi, IntTZSearchStruct &L0_cStruct, IntTZSearchStruct &L1_cStruct,
                                Mv L0_InitMv, Mv L1_InitMv, Mv L0_MVP, Mv L1_MVP, Mv &L0_finalMv, Mv &L1_finalMv,
                                bool bi)
 {
-  CPelBuf    oriPxl    = origBufCopy->Y();
-  int        oriStride = origBufCopy->Y().stride;
-// CPelBuf    L0_prePxl = *L0_cStruct.pcPatternKey;
-// CPelBuf    L1_prePxl = *L1_cStruct.pcPatternKey;
- // PelUnitBuf Aver_prePxl = m_tmpAffiStorage.getBuf( UnitAreaRelative(*pu.cu, pu) );
+  CPelBuf    oriPxl    = origBufCopy.Y();
+  int        oriStride = origBufCopy.Y().stride;
   int        width     = L0_cPatternRoi->width;
   int        height    = L0_cPatternRoi->height;
-  //int        preStride = L0_prePxl.stride;
-  L0_finalMv            = L0_InitMv;
-  L1_finalMv            = L1_InitMv;
-  // return;
+  int        w0        = getBcwWeight( pu.cu->BcwIdx, REF_PIC_LIST_0 );
+  int        w1        = getBcwWeight( pu.cu->BcwIdx, REF_PIC_LIST_1 );
+  int        shift1    = 0;
+  int        offset3   = 1 << (shift1+2);
   // get L0_and L1_CST
+
+  
   L0_InitMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
   L1_InitMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+  L0_finalMv            = L0_InitMv;
+  L1_finalMv            = L1_InitMv;
+  Mv B_L0_init_Mv          = L0_InitMv;
+  Mv B_L1_init_Mv          = L1_InitMv;
+
   L0_MVP.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
   L1_MVP.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
   clipMv(L0_InitMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
   clipMv(L1_InitMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
   xGetPre_fme(L0_InitMv, L0_cStruct, true);
   xGetPre_fme(L1_InitMv, L1_cStruct, false);
-  Distortion uiDist    = std::numeric_limits<Distortion>::max();
-  // const ClpRng &clpRng = m_lumaClpRng;
-  // Aver_prePxl.bufs[0].addWeightedAvg_bi(L0_prePxl, L1_prePxl, clpRng,2);
-  CPelBuf    Bi_prePxl;
+
+  Distortion uiCostBest_00    = std::numeric_limits<Distortion>::max();
+  Distortion P_DistBest_L0    = std::numeric_limits<Distortion>::max();
+  Distortion P_DistBest_L1    = std::numeric_limits<Distortion>::max();
+
+  // CPelBuf    Bi_prePxl;
   Pel *      pPredL0 = m_filteredBlock[0][0][0];
   Pel *      pPredL1 = m_filteredBlock[0][0][1];
-  Pel *      pPredBi = m_filteredBlock[0][0][2];
-
-  // printf("\n  ///////////// myself ////////////////\n");
-  // printf("\n  L0 MV (%d,%d) L1 MV (%d,%d)\n",L0_InitMv.hor, L0_InitMv.ver,L1_InitMv.hor, L1_InitMv.ver);
-  // /////////////////////////////
-  //  printf("\nORI: begin\n");
-  //  for (int j = 0; j < 8; j++)
-  //  {
-  //    for (int i = 0; i < 8; i++)
-  //    {
-  //      printf("%03d ", *(oriPxl.buf + j * oriPxl.stride + i));
-  //    }
-  //    printf("\n");
-  //  }
-  // /////////////////////////////
-  // /////////////////////////////
-  // printf("PRE_L0: begin \n");
-  // for (int j = 0; j < 16; j++){
-  //   for (int i = 0; i < 16; i++){
-  //     printf("%03d ", *(pPredL0 + j * width + i));
-  //   }
-  //   printf("\n");
-  // }
-  // /////////////////////////////
-  // /////////////////////////////
-  // printf("PRE_L1: begin\n");
-  // for (int j = 0; j < 16; j++)
-  // {
-  //  for (int i = 0; i < 16; i++)
-  //  {
-  //    printf("%03d ", *(pPredL1 + j * width + i));
-  //  }
-  //  printf("\n");
-  // }
-  // /////////////////////////////
-  for (int j = 0; j < height; j++){
-    for (int i = 0; i < width; i++){
-       pPredBi[i] = (pPredL0[i] + pPredL1[i] + 1) >> 1;
+  Distortion HADL0 = 0;
+  Distortion HADL1 = 0;
+  Distortion HADBi = 0;
+  // Distortion HADBi_tmp = 0;
+  int RESL0 [128][128];
+  int RESL1 [128][128];
+  int CoeL0 [128/4][128/4][16];
+  int CoeL1 [128/4][128/4][16];
+  int RESBi [128][128];
+  // HAD Verify
+  {
+    // get RES
+    const Pel *pOrg  = oriPxl.buf;
+    for (int j = 0; j < height; j++)
+    {
+      for (int i = 0; i < width; i++)
+      {
+        RESL0[j][i] = (int16_t)pOrg[i] - pPredL0[i];
+        RESL1[j][i] = (int16_t)pOrg[i] - pPredL1[i];
+        RESBi[j][i] = (int16_t)(pOrg[i] - ( ( w0 * pPredL0[i] + w1 * pPredL1[i] + offset3) >> (shift1 + 3))) ;
+        RESBi[j][i] = round(RESBi[j][i] * 8.0 /w0);
+      }
+      pOrg += oriStride;
+      pPredL0 += width;
+      pPredL1 += width;
     }
-    pPredL0 += width;
-    pPredL1 += width;
-    pPredBi += width;
+    // Get HAD
+    {
+      int Res4x4L0[16] = {0};
+      int Res4x4L1[16] = {0};
+      TCoeff T_coe_L0[16] = {0};
+      TCoeff T_coe_L1[16] = {0};
+      TCoeff T_temp[16] = {0};
+      int *Res_ptr_L0 = Res4x4L0;
+      int *Res_ptr_L1 = Res4x4L1;
+      for (int posY = 0; posY <  height; posY+=4){
+        for (int posX = 0; posX <  width; posX+=4){
+          int k = 0;
+          for (int j = posY; j < posY + 4; j++){
+            for (int i = posX; i < posX + 4; i++){
+              Res_ptr_L0[k] = RESL0[j][i];
+              Res_ptr_L1[k] = RESL1[j][i];
+              k++;
+            }
+          }
+          FME_fastForwardHAD_B4(Res_ptr_L0, T_temp, 0, 4, 0, 0);
+          FME_fastForwardHAD_B4(T_temp, T_coe_L0, 0, 4, 0, 0);
+          for (int num = 0; num < 16; num++) {
+            if (num == 0){
+              T_coe_L0[num] = T_coe_L0[num]/4;
+            }
+            HADL0 += abs(T_coe_L0[num]);
+          }
+
+          FME_fastForwardHAD_B4(Res_ptr_L1, T_temp, 0, 4, 0, 0);
+          FME_fastForwardHAD_B4(T_temp, T_coe_L1, 0, 4, 0, 0);
+          for (int num = 0; num < 16; num++) {
+            if (num == 0){
+              T_coe_L1[num] = T_coe_L1[num]/4;
+            }
+            HADL1 += abs(T_coe_L1[num]);
+          }
+          for (int num = 0; num < 16; num++) {
+            T_coe_L0[num] = w0 * T_coe_L0[num];
+            T_coe_L1[num] = w1 * T_coe_L1[num];
+            CoeL0[posY/4][posX/4][num] = T_coe_L0[num];
+            CoeL1[posY/4][posX/4][num] = T_coe_L1[num];
+            int sum = ((T_coe_L0[num] + T_coe_L1[num] + offset3) >> (shift1 + 3) );
+            HADBi += abs( round(8.0 * sum / w0));
+          }
+        }
+      }
+    }
   }
-  // /////////////////////////////
-  // pPredBi = m_filteredBlock[0][0][2];
-  // printf("======== PRE_Bi =======L0 MV (%d,%d) L1 MV (%d,%d) ===\n",L0_InitMv.hor,L0_InitMv.ver,L1_InitMv.hor,L1_InitMv.ver);
-  // for (int j = 0; j < 8; j++) {
-  //   for (int i = 0; i < 8; i++) {
-  //     printf("%03d ", *(pPredBi + j * width + i));
-  //   }
-  //   printf("\n");
-  // }
-  // printf("\t\t\t\tpu.cu->imv : %d L0_cStruct.imvShift : %d L1_cStruct.imvShift : %d \n",  pu.cu->imv, L0_cStruct.imvShift, L1_cStruct.imvShift);
-  m_cDistParam.cur.buf = m_filteredBlock[0][0][2];
-  m_pcRdCost->setDistParam(m_cDistParam, oriPxl, m_filteredBlock[0][0][2], width, m_lumaClpRng.bd,
-                           COMPONENT_Y, 0, 1, true);
-  uiDist = m_cDistParam.distFunc(m_cDistParam);
-  // m_pcRdCost->setCostScale(0);
-  uiDist += m_pcRdCost->getCostOfVectorWithBiPre(L0_InitMv, L1_InitMv, L0_MVP, L1_MVP, L0_cStruct.imvShift);
-  // printf("\t\t\t\tR_D_Cst_inter : %ld D : %ld R : %ld\n",uiDist,uiDist - m_pcRdCost->getCostOfVectorWithBiPre(L0_InitMv, L1_InitMv, L0_MVP, L1_MVP, L0_cStruct.imvShift) , m_pcRdCost->getCostOfVectorWithBiPre(L0_InitMv, L1_InitMv, L0_MVP, L1_MVP, L0_cStruct.imvShift));
-    // initial MV and CST
-  Mv         L0_MvTemp = L0_InitMv;
-  Mv         L1_MvTemp = L1_InitMv;
-  Distortion uiCostBest = uiDist;
-  //Pel *L0_filteredBlock;
-  //Pel *L1_filteredBlock;
-  /////////////////////////////
-  // printf("\n  ///////////// VTM ////////////////\n");
-  // const Pel *pPredL0_VTM  = L0_prePxl.buf;
-  // printf("PRE_L0: begin \n");
-  // for (int j = 0; j < 16; j++) {
-  //   for (int i = 0; i < 16; i++) {
-  //     printf("%03d ", *(pPredL0_VTM + j * L0_prePxl.stride + i));
-  //     printf("!!");
-  //   }
-  //   printf("\n");
-  // }
-  /////////////////////////////
-  // const Pel *pPredL1_VTM  = L1_prePxl.buf;
-  // printf("PRE_L1: begin\n");
-  // for (int j = 0; j < 16; j++) {
-  //   for (int i = 0; i < 16; i++) {
-  //     printf("%03d ", *(pPredL1_VTM + j * L1_prePxl.stride + i));
-  //     printf("==");
-  //   }
-  //   printf("\n");
-  // }
-    /////////////////////////////
+  // get RD Cost
+  P_DistBest_L0 = HADL0;
+  m_pcRdCost->setCostScale(2);
+  P_DistBest_L0 += m_pcRdCost->getCostOfVectorWithPredictor(L0_InitMv.hor, L0_InitMv.ver, L0_cStruct.imvShift);
 
+  P_DistBest_L1 = HADL1;
+  m_pcRdCost->setCostScale(2);
+  P_DistBest_L1 += m_pcRdCost->getCostOfVectorWithPredictor(L1_InitMv.hor, L1_InitMv.ver, L1_cStruct.imvShift);
 
-  // get Pre
-  // xGetPre_fme(iniMvInt, cStruct);xGetPre_fme
-  // get L0_pre
-  //L0_filteredBlock = L0_prePxl.buf;
-  //// get L1_pre
-  //L1_filteredBlock = L1_prePxl.buf;
-  // get average_pre
+  uiCostBest_00 = HADBi;
+  uiCostBest_00 += m_pcRdCost->getCostOfVectorWithBiPre(L0_InitMv, L1_InitMv, L0_MVP, L1_MVP, 0);
+  // printf("\t\t\t(Ini RD CST) : %ld D : %ld R : %ld\n",uiCostBest_00,
+  //                             uiCostBest_00 - m_pcRdCost->getCostOfVectorWithBiPre(L0_InitMv, L1_InitMv, L0_MVP, L1_MVP, 0) ,
+  //                             m_pcRdCost->getCostOfVectorWithBiPre(L0_InitMv, L1_InitMv, L0_MVP, L1_MVP, 0));
+  
+  // initial MV and CST
+  Mv           P_L0_MvTemp = L0_InitMv;
+  Mv           P_L1_MvTemp = L1_InitMv;
+  Distortion uiCostBest_Bi = uiCostBest_00;
+  Mv           B_L0_MvTemp = L0_InitMv;
+  Mv           B_L1_MvTemp = L1_InitMv;
+  int iIterTime = 1;
 
- /* Aver_prePxl.addWeightedAvg(CPelBuf(L0_filteredBlock, oriStride, pu.lumaSize()),
-                     CPelBuf(L1_filteredBlock, oriStride, pu.lumaSize()), clpRng,0);*/
-  //Aver_prePxl.addWeightedAvg(L0_prePxl, L0_prePxl, clpRng, 0);
-
-  //CPelUnitBuf L_0 ;
-  //CPelUnitBuf L_1 ;
-  //ClpRngs c;
-  //L_0 = CPelUnitBuf(pu.chromaFormat, PelBuf(L0_filteredBlock, L0_prePxl));
-  //L_1 = CPelUnitBuf(pu.chromaFormat, PelBuf(L1_filteredBlock, L1_prePxl));
-  //pcYuvDst.bufs[0].addAvg(CPelBuf(pSrcY0, src0Stride, pu.lumaSize()), CPelBuf(pSrcY1, src1Stride, pu.lumaSize()),
-  /*                        clpRngs.comp[0]);*/
-  // Aver_prePxl.bufs[0].addAvg(L0_prePxl, L1_prePxl, clpRng);
-
-
- /////////////////////////////
-  //printf("PRE_Fnl: \n");
-  //for (int j = 0; j < 16; j++)
-  //{
-  //  for (int i = 0; i < 16; i++)
-  //  {
-  //    printf("%03d ", *(Aver_prePxl.bufs[0].buf + j * Aver_prePxl.bufs[0].stride + i));
-  //  }
-  //  printf("\n");
-  //}
- /////////////////////////////
-
-    /////////////////////////////
-   //printf("\nORI: \n");
-   // for (int j = 0; j < 16; j++)
-   // {
-   //   for (int i = 0; i < 16; i++)
-   //   {
-   //     printf("%03d ", *(oriPxl.buf + j * oriPxl.stride + i));
-   //   }
-   //   printf("\n");
-   // }
-  /////////////////////////////
-  /*Aver_prePxl.addAvg(L0_prePxl, L1_prePxl, clpRng);*/
-
-  // set iter times
-  int iIterTime = 2;
-  // for loop : use gradient to update mv
-  // get Error Matrix
-  //const int bufStride     = oriStride;
-  //const int predBufStride = preStride;
   int *     L0_pdDerivate[2];
   int *     L1_pdDerivate[2];
   L0_pdDerivate[0] = m_L0_Grad[0];
@@ -6650,245 +6679,341 @@ void InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy
   L1_pdDerivate[0] = m_L1_Grad[0];
   L1_pdDerivate[1] = m_L1_Grad[1];
 
-  int     iParaNum = 3;
-  int64_t L0_i64EqualCoeff[7][7];   // !!! actually, the arry size should be [3][3]
-  double  L0_pdEqualCoeff[7][7];    // double** pdEqualCoeff;
-
-  int64_t L1_i64EqualCoeff[7][7];   // !!! actually, the arry size should be [3][3]
-  double  L1_pdEqualCoeff[7][7];    // double** pdEqualCoeff;
-
-  Mv acDeltaMv[3];
-  for (int iter = 0; iter < iIterTime; iter++)   // iterate loop
-  {
-    /*********************************************************************************
-     *                         use gradient to update mv
-     *********************************************************************************/
-    // get Error Matrix
-    const Pel *pOrg  = oriPxl.buf;
-    Pel *      pPred = m_filteredBlock[0][0][2];
-     //printf("\nFirst  Pre: \n");
-     // for (int j = 0; j < 16; j++)
-     // {
-     //   for (int i = 0; i < 16; i++)
-     //   {
-     //     printf("%03d ", *(m_filteredBlock[0][0][0] + j * preStride + i));
-     //   }
-     //   printf("\n");
-     // }
-    Pel *piError = m_tmpAffiError;
-    for (int j = 0; j < height; j++)
-    {
-      for (int i = 0; i < width; i++)
-      {
-        piError[i + j * width] = pOrg[i] - pPred[i];
-      }
-      pOrg += oriStride;
-      pPred += width;
-    }
-    //// get Grads
-    //// sobel x direction
-    //// -1 0 1
-    //// -2 0 2
-    //// -1 0 1
-    // Pel *const pPred_L1_tmp = L0_prePxl.buf;
-    m_HorizontalSobelFilter( m_filteredBlock[0][0][0], width, L0_pdDerivate[0], width, width, height);
-    m_HorizontalSobelFilter( m_filteredBlock[0][0][1], width, L1_pdDerivate[0], width, width, height);
-
-    //// sobel y direction
-    //// -1 -2 -1
-    ////  0  0  0
-    ////  1  2  1
-    m_VerticalSobelFilter(m_filteredBlock[0][0][0], width, L0_pdDerivate[1], width, width, height);
-    m_VerticalSobelFilter(m_filteredBlock[0][0][1], width, L1_pdDerivate[1], width, width, height);
+  // Mv acDeltaMv[3];
+  for (int iter = 0; iter < iIterTime; iter++) {
+    double Bi_L0_c0 = 0.0;
+    double Bi_L0_c1 = 0.0;
     //// get L0 mv
     {
-      ////// solve delta x and y
-      for (int row = 0; row < iParaNum; row++)
-      {
-        memset(&L0_i64EqualCoeff[row][0], 0, iParaNum * sizeof(int64_t));
-      }
-          // return;
-      xEqualCoeffComputer_fme(piError, width, L0_pdDerivate, width, L0_i64EqualCoeff, width, height);
+      //// get Grads
+      m_HorizontalSobelFilter( m_filteredBlock[0][0][0], width, L0_pdDerivate[0], width, width, height);
+      m_VerticalSobelFilter  ( m_filteredBlock[0][0][0], width, L0_pdDerivate[1], width, width, height);
 
-      for (int row = 0; row < iParaNum; row++)
+
+
+      //// get L0 mv
+      double a0 = 0.0;
+      double b0 = 0.0;
+      double b1 = 0.0;
+      double c0 = 0.0;
+      double c1 = 0.0;
+      int derivateBufStride = width;
+      for (int j = 0; j < height; j++)
       {
-        for (int i = 0; i < iParaNum; i++)
+        for (int i = 0; i < width; i++)
         {
-          L0_pdEqualCoeff[row][i] = (double) L0_i64EqualCoeff[row][i];
+          int idx = j * derivateBufStride + i;
+          double laplace_numerator   = sqrt((j - height / 2) * (j - height / 2) + (i - width / 2) * (i - width / 2));
+          double laplace_denominator = sqrt(height * width);
+          double laplace_weight      = exp(-laplace_numerator / laplace_denominator);
+          a0 += 100 * laplace_weight * L0_pdDerivate[0][idx] * L0_pdDerivate[0][idx];
+          b0 += 100 * laplace_weight * L0_pdDerivate[0][idx] * L0_pdDerivate[1][idx];
+          c0 += 100 * laplace_weight * L0_pdDerivate[0][idx] * RESL0[j][i] * 8;
+          b1 += 100 * laplace_weight * L0_pdDerivate[1][idx] * L0_pdDerivate[1][idx];
+          c1 += 100 * laplace_weight * L0_pdDerivate[1][idx] * RESL0[j][i] * 8;
+          int RES_bi = ((w0*RESL0[j][i] + w1*RESL1[j][i] + offset3 ) >> ((shift1 + 3)));
+          RES_bi = round(8.0 * RES_bi / w0);
+          // printf("%d ", RES_bi);
+          Bi_L0_c0 += 100 * laplace_weight * L0_pdDerivate[0][idx] * RES_bi*8;
+          Bi_L0_c1 += 100 * laplace_weight * L0_pdDerivate[1][idx] * RES_bi*8;
+          // int idx = j * derivateBufStride + i;
+          // a0 = L0_pdDerivate[0][idx] * L0_pdDerivate[0][idx];
+          // b0 = L0_pdDerivate[0][idx] * L0_pdDerivate[1][idx];
+          // c0 = L0_pdDerivate[0][idx] * RESL0[j][i];
+          // b1 = L0_pdDerivate[1][idx] * L0_pdDerivate[1][idx];
+          // c1 = L0_pdDerivate[1][idx] * RESL0[j][i];
         }
+        // printf("\n");
       }
 
-      double dAffinePara[6];
-      double dDeltaMv[6];
-
-      solveEqual(L0_pdEqualCoeff, 2, dAffinePara);   // !!! the affineParaNum should be 2
-      // convert to delta mv
-      dDeltaMv[0] = dAffinePara[0];
-      dDeltaMv[1] = dAffinePara[1];
-      for (int i = 0; i < 6; i++)
+      double a1 = b0;
+      double P_DeltaMvL0[2];
+      double B_DeltaMvL0[2];
+      Mv DltTMV;
+      // --------------------- P MV -----------------------------------------------------
       {
-        dDeltaMv[i] = Clip3(-8192.0, 8192.0, dDeltaMv[i]);
+        P_DeltaMvL0[0] = (b1 * c0 - b0 * c1)/ (a0 * b1 - a1 * b0);
+        P_DeltaMvL0[1] = (a0 * c1 - a1 * c0)/ (a0 * b1 - a1 * b0);
+        P_DeltaMvL0[0] = Clip3(-8192.0, 8192.0, P_DeltaMvL0[0]);
+        P_DeltaMvL0[1] = Clip3(-8192.0, 8192.0, P_DeltaMvL0[1]);
+
+        DltTMV  = Mv((int) (P_DeltaMvL0[0] * 4 + SIGN(P_DeltaMvL0[0]) * 0.5) * (1 << 2),
+                     (int) (P_DeltaMvL0[1] * 4 + SIGN(P_DeltaMvL0[1]) * 0.5) * (1 << 2));
+        if ((a0 * b1 - a1 * b0) == 0.0){
+          DltTMV = Mv(0,0);
+        }
+        DltTMV.hor = Clip3(-16, 16, DltTMV.hor);
+        DltTMV.ver = Clip3(-16, 16, DltTMV.ver);
+        DltTMV.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+        P_L0_MvTemp += DltTMV;
+        P_L0_MvTemp.hor = Clip3(MV_MIN, MV_MAX, P_L0_MvTemp.hor);
+        P_L0_MvTemp.ver = Clip3(MV_MIN, MV_MAX, P_L0_MvTemp.ver);
+        clipMv(P_L0_MvTemp, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
       }
-      // printf("\t\t\t\tL0 dAffinePara : (%f,%f)\n", dDeltaMv[0],  dDeltaMv[1]);
-      acDeltaMv[0] = Mv((int) (dDeltaMv[0] * 4 + SIGN(dDeltaMv[0]) * 0.5) * (1 << 2),
-                        (int) (dDeltaMv[1] * 4 + SIGN(dDeltaMv[1]) * 0.5) * (1 << 2));
-      // printf("\t\t\t\tL0 dAffinePara (Q) : (%d,%d)\n", acDeltaMv[0].hor,  acDeltaMv[0].ver);
-      // MV
-      Mv TMP = acDeltaMv[0];
-      // printf("FME       INT MV :   (%03d,%03d)\n", rcMvInt.hor * 4,    rcMvInt.ver * 4);
-      // printf("FME       Haf MV :   (%03d,%03d)\n", rcMvHalf.hor * 2, rcMvHalf.ver * 2 );
-      // printf("FME       Qua MV :   (%03d,%03d)\n", FME_TVM.hor, FME_TVM.ver);
-      //  printf("Opitical Dlt MV :   ( %d,%d)\n\n", acDeltaMv[0].hor, acDeltaMv[0].ver);
-      TMP.hor = Clip3(-64, 64, TMP.hor);
-      TMP.ver = Clip3(-64, 64, TMP.ver);
-      TMP.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
-      // Mv fnl_delete = (L0_MvTemp + TMP);
-      // printf("\t\t\t\tL0 (Initial) : (%d,%d)  dlt :(%d,%d) Fnl :(%d,%d)\n", L0_MvTemp.hor, L0_MvTemp.ver, TMP.hor, TMP.ver,fnl_delete.hor,fnl_delete.ver);
-      L0_MvTemp += TMP;
-      // printf("!!!!!Final : (%03d,%03d) \n\n", MvTemp.hor, MvTemp.ver);
-      L0_MvTemp.hor = Clip3(MV_MIN, MV_MAX, L0_MvTemp.hor);
-      L0_MvTemp.ver = Clip3(MV_MIN, MV_MAX, L0_MvTemp.ver);
-      // MvTemp.roundAffinePrecInternal2Amvr(cu.imv);
-      clipMv(L0_MvTemp, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
+      // --------------------- B MV -----------------------------------------------------
+      {
+        B_DeltaMvL0[0] = (b1 * Bi_L0_c0 - b0 * Bi_L0_c1)/ (a0 * b1 - a1 * b0);
+        B_DeltaMvL0[1] = (a0 * Bi_L0_c1 - a1 * Bi_L0_c0)/ (a0 * b1 - a1 * b0);
+        B_DeltaMvL0[0] = Clip3(-8192.0, 8192.0, B_DeltaMvL0[0]);
+        B_DeltaMvL0[1] = Clip3(-8192.0, 8192.0, B_DeltaMvL0[1]);
+
+        DltTMV = Mv((int) (B_DeltaMvL0[0] * 4 + SIGN(B_DeltaMvL0[0]) * 0.5) * (1 << 2),
+                    (int) (B_DeltaMvL0[1] * 4 + SIGN(B_DeltaMvL0[1]) * 0.5) * (1 << 2));
+        if ((a0 * b1 - a1 * b0) == 0.0){
+          DltTMV = Mv(0,0);
+        }
+        DltTMV.hor = Clip3(-64, 64, DltTMV.hor);
+        DltTMV.ver = Clip3(-64, 64, DltTMV.ver);
+        DltTMV.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+        B_L0_MvTemp += DltTMV;
+        B_L0_MvTemp.hor = Clip3(MV_MIN, MV_MAX, B_L0_MvTemp.hor);
+        B_L0_MvTemp.ver = Clip3(MV_MIN, MV_MAX, B_L0_MvTemp.ver);
+        clipMv(B_L0_MvTemp, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
+      }
     }
+
     //// get L1 mv
+    double Bi_L1_c0 = 0.0;
+    double Bi_L1_c1 = 0.0;
     {
-      ////// solve delta x and y
-      for (int row = 0; row < iParaNum; row++)
-      {
-        memset(&L1_i64EqualCoeff[row][0], 0, iParaNum * sizeof(int64_t));
-      }
-
-      xEqualCoeffComputer_fme(piError, width, L1_pdDerivate, width, L1_i64EqualCoeff, width, height);
-
-      for (int row = 0; row < iParaNum; row++)
-      {
-        for (int i = 0; i < iParaNum; i++)
-        {
-          L1_pdEqualCoeff[row][i] = (double) L1_i64EqualCoeff[row][i];
-        }
-      }
-
-      double dAffinePara[6];
-      double dDeltaMv[6];
-
-      solveEqual(L1_pdEqualCoeff, 2, dAffinePara);   // !!! the affineParaNum should be 2
-      // convert to delta mv
-      dDeltaMv[0] = dAffinePara[0];
-      dDeltaMv[1] = dAffinePara[1];
-      for (int i = 0; i < 6; i++)
-      {
-        dDeltaMv[i] = Clip3(-8192.0, 8192.0, dDeltaMv[i]);
-      }
-      // printf("\t\t\t\tL1 dAffinePara : (%f,%f)\n", dDeltaMv[0],  dDeltaMv[1]);
-      acDeltaMv[1] = Mv((int) (dDeltaMv[0] * 4 + SIGN(dDeltaMv[0]) * 0.5) * (1 << 2),
-                        (int) (dDeltaMv[1] * 4 + SIGN(dDeltaMv[1]) * 0.5) * (1 << 2));
-      // printf("\t\t\t\tL1 dAffinePara (Q) : (%d,%d) \n", acDeltaMv[1].hor,  acDeltaMv[1].ver);
-      // MV
-      Mv TMP = acDeltaMv[1];
-      // printf("FME       INT MV :   (%03d,%03d)\n", rcMvInt.hor * 4,    rcMvInt.ver * 4);
-      // printf("FME       Haf MV :   (%03d,%03d)\n", rcMvHalf.hor * 2, rcMvHalf.ver * 2 );
-      // printf("FME       Qua MV :   (%03d,%03d)\n", FME_TVM.hor, FME_TVM.ver);
-      //  printf("Opitical Dlt MV :   ( %d,%d)\n\n", acDeltaMv[0].hor, acDeltaMv[0].ver);
-      // if (bi) {
-      //   TMP.hor = -TMP.hor;
-      //   TMP.ver = -TMP.ver;
-      // }
-      TMP.hor = Clip3(-64, 64, TMP.hor);
-      TMP.ver = Clip3(-64, 64, TMP.ver);
-      TMP.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
-      // Mv fnl_delete = (L1_MvTemp + TMP);
-      // printf("\t\t\t\tL1 (Initial) : (%d,%d)  dlt :(%d,%d) Fnl :(%d,%d)\n", L1_MvTemp.hor, L1_MvTemp.ver, TMP.hor, TMP.ver,fnl_delete.hor,fnl_delete.ver);
-      L1_MvTemp += TMP;
-      // printf("!!!!!Final : (%03d,%03d) \n\n", MvTemp.hor, MvTemp.ver);
-      L1_MvTemp.hor = Clip3(MV_MIN, MV_MAX, L1_MvTemp.hor);
-      L1_MvTemp.ver = Clip3(MV_MIN, MV_MAX, L1_MvTemp.ver);
-      // MvTemp.roundAffinePrecInternal2Amvr(cu.imv);
-      clipMv(L1_MvTemp, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
-    }
-
-    // do motion compensation with updated mv
-    // L0 Pre
-    xGetPre_fme(L0_MvTemp, L0_cStruct, true); 
-    xGetPre_fme(L1_MvTemp, L1_cStruct, false); 
-    // CPelBuf a = CPelBuf(m_filteredBlock[0][0][0], width, pu.lumaSize());
-    // CPelBuf b = CPelBuf(m_filteredBlock[0][0][1], width, pu.lumaSize());
-
-    //Aver_prePxl.addAvg(CPelBuf(m_filteredBlock[0][0][0], oriStride, pu.lumaSize()),
-    //                   CPelBuf(m_filteredBlock[0][0][1], oriStride, pu.lumaSize()), clpRng);
-
-    // Aver_prePxl.bufs[0].addWeightedAvg_bi(a, b, clpRng,2);
-    pPredL0 = m_filteredBlock[0][0][0];
-    pPredL1 = m_filteredBlock[0][0][1];
-    pPredBi = m_filteredBlock[0][0][2];
-    for (int j = 0; j < height; j++){
-      for (int i = 0; i < width; i++){
-        pPredBi[i] = (pPredL0[i] + pPredL1[i] + 1) >> 1;
-      }
-      pPredL0 += width;
-      pPredL1 += width;
-      pPredBi += width;
-    }
-    // printf("======== Inter_Bi ====L0 MV (%d,%d) L1 MV (%d,%d) ===\n",L0_MvTemp.hor,L0_MvTemp.ver,L1_MvTemp.hor,L1_MvTemp.ver);
-    // pPredBi = m_filteredBlock[0][0][2];
-    // for (int j = 0; j < 8; j++) {
-    //   for (int i = 0; i < 8; i++) {
-    //     printf("%03d ", *(pPredBi + j * width + i));
-    //   }
-    //   printf("\n");
-    // }
-    // printf("Inter!!\n");
-    // for (int j = height-8; j < height; j++) {
-    //   for (int i = width-8; i < width; i++) {
-    //     printf("%03d ", *(pPredBi + j * width + i));
-    //   }
-    //   printf("\n");
-    // }
-          // return;
-    // get new Mv CST
-    m_cDistParam.cur.buf = m_filteredBlock[0][0][2];
-      // printf("\nsecond  Pre: \n");
-      //for (int j = 0; j < 16; j++)
+      //// get Grads
+      m_HorizontalSobelFilter( m_filteredBlock[0][0][1], width, L1_pdDerivate[0], width, width, height);
+      m_VerticalSobelFilter  ( m_filteredBlock[0][0][1], width, L1_pdDerivate[1], width, width, height);
+      // printf("\n -------- (Grade x): ----------------\n");
+      // for (int j = 0; j < 16; j++)
       // {
-      //  for (int i = 0; i < 16; i++)
-      //  {
-      //     printf("%03d ",*(Aver_prePxl.bufs[0].buf + j * Aver_prePxl.bufs[0].stride + i));
-      //  }
+      //   for (int i = 0; i < 16; i++)
+      //   {
+      //     printf("%03d ",L1_pdDerivate[0][i + j * width]);
+      //   }
       //   printf("\n");
       // }
-    m_pcRdCost->setDistParam(m_cDistParam, oriPxl, m_filteredBlock[0][0][2], width, m_lumaClpRng.bd,
-                             COMPONENT_Y, 0, 1, true);
-    Distortion uiCostTemp = m_cDistParam.distFunc(m_cDistParam);
-     //printf("\nSecond :   CST_D : %06d \n", (int) uiCostTemp);
-    // m_pcRdCost->setCostScale(0);
-    uiCostTemp += m_pcRdCost->getCostOfVectorWithBiPre(L0_MvTemp, L1_MvTemp, L0_MVP, L1_MVP, L0_cStruct.imvShift);
-     //printf("\nSecond :   CST_RD : %06d \n", (int) uiCostTemp);
-    // xGetPre_fme(MvTemp, cStruct, Pre); // !!!
-    // store best cost and mv
-    // printf("\t\t\t\tR_D_Cst_inter : %ld D : %ld R : %ld\n",uiCostTemp,uiCostTemp -m_pcRdCost->getCostOfVectorWithBiPre(L0_MvTemp, L1_MvTemp, L0_MVP, L1_MVP, 2) ,m_pcRdCost->getCostOfVectorWithBiPre(L0_MvTemp, L1_MvTemp, L0_MVP, L1_MVP, 2));
-    if (uiCostTemp < uiCostBest)
-    {
-      uiCostBest = uiCostTemp;
-      // CSS 
- /*     if (acDeltaMv[0].hor == 0 && acDeltaMv[0].ver == 0)
+      // printf("\n -------- (Grade y): ----------------\n");
+      // for (int j = 0; j < 16; j++)
+      // {
+      //   for (int i = 0; i < 16; i++)
+      //   {
+      //     printf("%03d ",L1_pdDerivate[1][i + j * width]);
+      //   }
+      //   printf("\n");
+      // }
+      // m_VerticalSobelFilter(m_filteredBlock[0][0][1], width, L1_pdDerivate[1], width, width, height);
+      //// get L0 mv
+      double a0 = 0.0;
+      double b0 = 0.0;
+      double b1 = 0.0;
+      double c0 = 0.0;
+      double c1 = 0.0;
+      int derivateBufStride = width;
+      for (int j = 0; j < height; j++)
       {
-        break;
-      }*/
-      L0_finalMv = L0_MvTemp;
-      L1_finalMv = L1_MvTemp;
-      // printf("\t\tL0_Initial : (%03d,%03d)  FNL   (%03d,%03d) \n",L0_InitMv.hor, L0_InitMv.ver, L0_finalMv.hor, L0_finalMv.ver);
-      // printf("\t\tL1_Initial : (%03d,%03d)  FNL   (%03d,%03d) \n",L1_InitMv.hor, L1_InitMv.ver, L0_finalMv.hor, L0_finalMv.ver);
-      L0_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
-      L1_finalMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
-      // return;
-      // printf("\t\t\t\t\t\t\t\t====== inter =========\n");
-      //L0_finalMv = L0_InitMv;
-      //L1_finalMv = L0_InitMv;
-      //  printf("L0_Initial : (%03d,%03d)  FNL   (%03d,%03d)  MVP  (%03d,%03d) \n",L0_InitMv.hor, L0_InitMv.ver, L0_MvTemp.hor, L0_MvTemp.ver, L0_MVP.hor, L0_MVP.ver);
-      //  printf("L1_Initial : (%03d,%03d)  FNL   (%03d,%03d)  MVP  (%03d,%03d) \n",L1_InitMv.hor, L1_InitMv.ver, L1_MvTemp.hor, L1_MvTemp.ver, L1_MVP.hor, L1_MVP.ver);
+        for (int i = 0; i < width; i++)
+        {
+          int idx = j * derivateBufStride + i;
+          double laplace_numerator   = sqrt((j - height / 2) * (j - height / 2) + (i - width / 2) * (i - width / 2));
+          double laplace_denominator = sqrt(height * width);
+          double laplace_weight      = exp(-laplace_numerator / laplace_denominator);
+          a0 += 100 * laplace_weight * L1_pdDerivate[0][idx] * L1_pdDerivate[0][idx];
+          b0 += 100 * laplace_weight * L1_pdDerivate[0][idx] * L1_pdDerivate[1][idx];
+          c0 += 100 * laplace_weight * L1_pdDerivate[0][idx] * RESL1[j][i] * 8;
+          b1 += 100 * laplace_weight * L1_pdDerivate[1][idx] * L1_pdDerivate[1][idx];
+          c1 += 100 * laplace_weight * L1_pdDerivate[1][idx] * RESL1[j][i] * 8;
+          int RES_bi = ((w0*RESL0[j][i] + w1*RESL1[j][i] + offset3 ) >> ((shift1 + 3)));
+          RES_bi     = round(RES_bi * 8.0 / w0);
+          Bi_L1_c0 += 100 * laplace_weight * L1_pdDerivate[0][idx] * RES_bi * 8;
+          Bi_L1_c1 += 100 * laplace_weight * L1_pdDerivate[1][idx] * RES_bi * 8;
+
+          // int idx = j * derivateBufStride + i;
+          // a0 = L1_pdDerivate[0][idx] * L1_pdDerivate[0][idx];
+          // b0 = L1_pdDerivate[0][idx] * L1_pdDerivate[1][idx];
+          // c0 = L1_pdDerivate[0][idx] * RESL1[j][i];
+          // b1 = L1_pdDerivate[1][idx] * L1_pdDerivate[1][idx];
+          // c1 = L1_pdDerivate[1][idx] * RESL1[j][i];
+        }
+      }
+      double a1 = b0;
+      double P_DeltaMvL1[2];
+      double B_DeltaMvL1[2];
+      Mv DltTMV;
+      // --------------------- P MV -----------------------------------------------------
+      {
+        P_DeltaMvL1[0] = (b1 * c0 - b0 * c1)/ (a0 * b1 - a1 * b0);
+        P_DeltaMvL1[1] = (a0 * c1 - a1 * c0)/ (a0 * b1 - a1 * b0);
+        P_DeltaMvL1[0] = Clip3(-8192.0, 8192.0, P_DeltaMvL1[0]);
+        P_DeltaMvL1[1] = Clip3(-8192.0, 8192.0, P_DeltaMvL1[1]);
+
+        DltTMV  = Mv((int) (P_DeltaMvL1[0] * 4 + SIGN(P_DeltaMvL1[0]) * 0.5) * (1 << 2),
+                     (int) (P_DeltaMvL1[1] * 4 + SIGN(P_DeltaMvL1[1]) * 0.5) * (1 << 2));
+        if ((a0 * b1 - a1 * b0) == 0.0){
+          DltTMV = Mv(0,0);
+        }
+        DltTMV.hor = Clip3(-16, 16, DltTMV.hor);
+        DltTMV.ver = Clip3(-16, 16, DltTMV.ver);
+        DltTMV.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+        P_L1_MvTemp += DltTMV;
+        P_L1_MvTemp.hor = Clip3(MV_MIN, MV_MAX, P_L1_MvTemp.hor);
+        P_L1_MvTemp.ver = Clip3(MV_MIN, MV_MAX, P_L1_MvTemp.ver);
+        clipMv(P_L1_MvTemp, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
+      }
+
+      // --------------------- B MV -----------------------------------------------------
+      {
+        B_DeltaMvL1[0] = (b1 * Bi_L1_c0 - b0 * Bi_L1_c1)/ (a0 * b1 - a1 * b0);
+        B_DeltaMvL1[1] = (a0 * Bi_L1_c1 - a1 * Bi_L1_c0)/ (a0 * b1 - a1 * b0);
+
+        B_DeltaMvL1[0] = Clip3(-8192.0, 8192.0, B_DeltaMvL1[0]);
+        B_DeltaMvL1[1] = Clip3(-8192.0, 8192.0, B_DeltaMvL1[1]);
+
+        DltTMV = Mv((int) (B_DeltaMvL1[0] * 4 + SIGN(B_DeltaMvL1[0]) * 0.5) * (1 << 2),
+                    (int) (B_DeltaMvL1[1] * 4 + SIGN(B_DeltaMvL1[1]) * 0.5) * (1 << 2));
+        if ((a0 * b1 - a1 * b0) == 0.0){
+          DltTMV = Mv(0,0);
+        }
+        DltTMV.hor = Clip3(-64, 64, DltTMV.hor);
+        DltTMV.ver = Clip3(-64, 64, DltTMV.ver);
+        DltTMV.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+        B_L1_MvTemp += DltTMV;
+        B_L1_MvTemp.hor = Clip3(MV_MIN, MV_MAX, B_L1_MvTemp.hor);
+        B_L1_MvTemp.ver = Clip3(MV_MIN, MV_MAX, B_L1_MvTemp.ver);
+        clipMv(B_L1_MvTemp, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
+      }
+    }
+
+    // ========================== updated B ================================================
+    // MC
+    xGetPre_fme(B_L0_MvTemp, L0_cStruct, true);
+    xGetPre_fme(B_L1_MvTemp, L1_cStruct, false);
+
+    pPredL0 = m_filteredBlock[0][0][0];
+    pPredL1 = m_filteredBlock[0][0][1];
+
+    // HAD Verify
+    int  HAD_new_L0_new_L1 = 0;
+    int  HAD_new_L0_old_L1 = 0;
+    int  HAD_old_L0_new_L1 = 0;
+    Distortion uiCostBest_HAD_new_L0_new_L1 = std::numeric_limits<Distortion>::max();
+    Distortion uiCostBest_HAD_new_L0_old_L1 = std::numeric_limits<Distortion>::max();
+    Distortion uiCostBest_HAD_old_L0_new_L1 = std::numeric_limits<Distortion>::max();
+    {
+      // int HADBi_Ori = 0;
+      // get RES
+
+      // int RESBi [128][128];
+      const Pel *pOrg  = oriPxl.buf;
+      Pel *      pPredL0 = m_filteredBlock[0][0][0];
+      Pel *      pPredL1 = m_filteredBlock[0][0][1];
+      for (int j = 0; j < height; j++)
+      {
+        for (int i = 0; i < width; i++)
+        {
+          RESL0[j][i] = (int16_t)pOrg[i] - pPredL0[i];
+          RESL1[j][i] = (int16_t)pOrg[i] - pPredL1[i];
+        }
+        pOrg += oriStride;
+        pPredL0 += width;
+        pPredL1 += width;
+      }
+      // Get HAD
+      {
+        int Res4x4L0[16] = {0};
+        int Res4x4L1[16] = {0};
+        // int Res4x4Bi[16] = {0};
+        TCoeff T_coe_L0[16] = {0};
+        TCoeff T_coe_L1[16] = {0};
+        TCoeff T_temp[16] = {0};
+        int *Res_ptr_L0 = Res4x4L0;
+        int *Res_ptr_L1 = Res4x4L1;
+        // int *Res_ptr_Bi = Res4x4Bi;
+        for (int posY = 0; posY <  height; posY+=4){
+          for (int posX = 0; posX <  width; posX+=4){
+            int k = 0;
+            for (int j = posY; j < posY + 4; j++){
+              for (int i = posX; i < posX + 4; i++){
+                Res_ptr_L0[k] = RESL0[j][i];
+                Res_ptr_L1[k] = RESL1[j][i];
+                // Res_ptr_Bi[k] = RESBi[j][i];
+                k++;
+              }
+            }
+            FME_fastForwardHAD_B4(Res_ptr_L0, T_temp, 0, 4, 0, 0);
+            FME_fastForwardHAD_B4(T_temp, T_coe_L0, 0, 4, 0, 0);
+            for (int num = 0; num < 16; num++) {
+              if (num == 0){
+              T_coe_L0[num] = T_coe_L0[num]/4;
+            }
+              T_coe_L0[num] = w0 * T_coe_L0[num];
+              int sum = ((CoeL1[posY/4][posX/4][num] + T_coe_L0[num] + offset3) >> (shift1 + 3));
+              sum = round(sum * 8.0 /w0);
+              HAD_new_L0_old_L1 += abs(sum);
+              // HADL0 += abs(T_coe_L0[num]);
+            }
+
+            FME_fastForwardHAD_B4(Res_ptr_L1, T_temp, 0, 4, 0, 0);
+            FME_fastForwardHAD_B4(T_temp, T_coe_L1, 0, 4, 0, 0);
+            for (int num = 0; num < 16; num++) {
+              if (num == 0){
+              T_coe_L1[num] = T_coe_L1[num]/4;
+            }
+              T_coe_L1[num] = w1 * T_coe_L1[num];
+              int sum = ((CoeL0[posY/4][posX/4][num] + T_coe_L1[num] + offset3) >> (shift1 + 3));
+              sum = round(sum * 8.0 /w0);
+              HAD_old_L0_new_L1 += abs(sum);
+            }
+            // printf("new_Bi:   ");
+            for (int num = 0; num < 16; num++) {
+              // printf("%d ",(T_coe_L0[num] + T_coe_L1[num]) / 2);
+              int sum = ( (T_coe_L0[num] + T_coe_L1[num] + offset3) >> (shift1 + 3));
+              sum = round(sum * 8.0 /w0);
+              HAD_new_L0_new_L1 += abs(sum);
+            }
+          }
+        } 
+      }
+    }
+    m_pcRdCost->setCostScale(2);
+    uiCostBest_HAD_new_L0_old_L1 = HAD_new_L0_old_L1 + m_pcRdCost->getCostOfVectorWithBiPre(B_L0_MvTemp, B_L1_init_Mv, L0_MVP, L1_MVP, L0_cStruct.imvShift);
+    uiCostBest_HAD_old_L0_new_L1 = HAD_old_L0_new_L1 + m_pcRdCost->getCostOfVectorWithBiPre(B_L0_init_Mv, B_L1_MvTemp, L0_MVP, L1_MVP, L0_cStruct.imvShift);
+    uiCostBest_HAD_new_L0_new_L1 = HAD_new_L0_new_L1 + m_pcRdCost->getCostOfVectorWithBiPre(B_L0_MvTemp, B_L1_MvTemp, L0_MVP, L1_MVP, L0_cStruct.imvShift);
+    if (uiCostBest_HAD_new_L0_new_L1 < uiCostBest_Bi) {
+      uiCostBest_Bi = uiCostBest_HAD_new_L0_new_L1;
+      L0_finalMv = B_L0_MvTemp;
+      L1_finalMv = B_L1_MvTemp;
+    }
+    if (uiCostBest_HAD_old_L0_new_L1 < uiCostBest_Bi) {
+      uiCostBest_Bi = uiCostBest_HAD_old_L0_new_L1;
+      L0_finalMv = B_L0_init_Mv;
+      L1_finalMv = B_L1_MvTemp;
+    }
+    if (uiCostBest_HAD_new_L0_old_L1 < uiCostBest_Bi) {
+      uiCostBest_Bi = uiCostBest_HAD_new_L0_old_L1;
+      L0_finalMv = B_L0_MvTemp;
+      L1_finalMv = B_L1_init_Mv;
     }
   }
-  return;
+  // update cost
+  Distortion ReturnCost;
+  {
+    xGetPre_fme(L0_finalMv, L0_cStruct,  true);
+    xGetPre_fme(L1_finalMv, L1_cStruct, false);
+    PelUnitBuf  origBufTmp = m_tmpStorageLCU.getBuf( UnitAreaRelative(*pu.cu, pu) );
+    PelUnitBuf BufPreL1 = m_tmpPredStorage[1 - (int)eRefPicList].getBuf( UnitAreaRelative(*pu.cu, pu ));
+    origBufTmp.copyFrom(origBufCopy);
+    pPredL1 = m_filteredBlock[0][0][1];
+    for (int j = 0; j < height; j++){
+      for (int i = 0; i < width; i++){
+        *(BufPreL1.bufs[0].buf + j * BufPreL1.bufs[0].stride + i) = pPredL1[i];
+      }
+      pPredL1 += width;
+    }
+    origBufTmp.removeHighFreq( BufPreL1, m_pcEncCfg->getClipForBiPredMeEnabled(), pu.cu->slice->clpRngs() ,getBcwWeight( pu.cu->BcwIdx, eRefPicList ) );
+    oriPxl    = origBufTmp.Y();
+    m_pcRdCost->setDistParam(m_cDistParam, oriPxl, m_filteredBlock[0][0][0], width, m_lumaClpRng.bd,
+                            COMPONENT_Y, 0, 1, true);
+    ReturnCost = m_cDistParam.distFunc(m_cDistParam);
+    m_pcRdCost->setCostScale(2);
+    ReturnCost += m_pcRdCost->getCostOfVectorWithBiPre(L0_finalMv, L1_finalMv, L0_MVP, L1_MVP, L0_cStruct.imvShift);
+  }
+  return ReturnCost;
 }
 
 void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
@@ -11372,19 +11497,41 @@ void InterSearch::encodeResAndCalcRdInterCU(CodingStructure &cs, Partitioner &pa
   if (luma)
   {
     cs.getResiBuf().bufs[0].copyFrom(cs.getOrgBuf().bufs[0]);
+      // printf("\n calRES Ori: \n");
+      //  for (int j = 0; j < 16; j++)
+      //  {
+      //    for (int i = 0; i < 16; i++)
+      //    {
+      //      printf("%03d ", *(cs.getResiBuf().bufs[0].buf + j * cs.getResiBuf().bufs[0].stride + i));
+      //    }
+      //    printf("\n");
+      //  }
     if (cs.slice->getLmcsEnabledFlag() && m_pcReshape->getCTUFlag())
     {
       const CompArea &areaY = cu.Y();
       CompArea      tmpArea(COMPONENT_Y, areaY.chromaFormat, Position(0, 0), areaY.size());
       PelBuf tmpPred = m_tmpStorageLCU.getBuf(tmpArea);
       tmpPred.copyFrom(cs.getPredBuf(COMPONENT_Y));
-
+      // printf("\nInter Pre: \n");
+      // for (int j = 0; j < 16; j++){
+      //   for (int i = 0; i < 16; i++){
+      //     printf("%03d ", *(tmpPred.buf + j * tmpPred.stride + i));
+      //    }
+      //   printf("\n");
+      // }
       if (!cu.firstPU->ciipFlag && !CU::isIBC(cu))
       {
         tmpPred.rspSignal(m_pcReshape->getFwdLUT());
       }
       cs.getResiBuf(COMPONENT_Y).rspSignal(m_pcReshape->getFwdLUT());
       cs.getResiBuf(COMPONENT_Y).subtract(tmpPred);
+      // printf("\nInter Res: \n");
+      // for (int j = 0; j < 16; j++) {
+      //   for (int i = 0; i < 16; i++) {
+      //     printf("%03d ", *(cs.getResiBuf().bufs[0].buf + j * cs.getResiBuf().bufs[0].stride + i));
+      //   }
+      //   printf("\n");
+      // }
     }
     else
     {

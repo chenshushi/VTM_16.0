@@ -417,7 +417,7 @@ protected:
   void       xEqualCoeffComputer_fme(Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride,
                                      int64_t (*pEqualCoeff)[7], int width, int height);
   void       xGetPre_fme(Mv MvIntial, IntTZSearchStruct cStruct, bool isL0);
-  void       xOpticalFlow(const PredictionUnit &pu, PelUnitBuf *origBufCopy, CPelBuf *L0_cPatternRoi,
+  Distortion xOpticalFlow(const PredictionUnit &pu, PelUnitBuf &origBufCopy, RefPicList eRefPicList, CPelBuf *L0_cPatternRoi,
                                  CPelBuf *L1_cPatternRoi, IntTZSearchStruct &L0_cStruct, IntTZSearchStruct &L1_cStruct,
                                  Mv L0_InitMv, Mv L1_InitMv, Mv L0_MVP, Mv L1_MVP, Mv &L0_finalMv, Mv &L1_finalMv,
                                  bool bi);
