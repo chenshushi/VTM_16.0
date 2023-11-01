@@ -421,6 +421,7 @@ protected:
                                  CPelBuf *L1_cPatternRoi, IntTZSearchStruct &L0_cStruct, IntTZSearchStruct &L1_cStruct,
                                  Mv L0_InitMv, Mv L1_InitMv, Mv L0_MVP, Mv L1_MVP, Mv &L0_finalMv, Mv &L1_finalMv,
                                  bool bi);
+  Distortion xOpticalFlow_for_P(const PredictionUnit &pu, CPelBuf *cPatternRoi, IntTZSearchStruct &cStruct, Mv &rcMvIni,  Mv &rcMvQter, bool bi);
 
 public:
   /// encoder estimation - inter prediction (non-skip)
@@ -506,7 +507,7 @@ protected:
 
 #if GDR_ENABLED
   void xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred, int refIdxPred,
-                         Mv &rcMv, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits, Distortion &ruiCost,
+                         Mv &rcMv, Mv &IMV, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits, Distortion &ruiCost,
                          const AMVPInfo &amvpInfo, bool &rbCleanCandExist, bool bBi = false);
   void xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred, int refIdxPred,
                          Mv &rcMv, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits, Distortion &ruiCost,

@@ -2721,6 +2721,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
   Mv           cMv[2];
   Mv           cMvBi[2];
   Mv           cMvTemp[2][33];
+  Mv           cMvInter[2][33];
   Mv           cMvHevcTemp[2][33];
   int          iNumPredDir = cs.slice->isInterP() ? 1 : 2;
 
@@ -3021,7 +3022,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
 #if GDR_ENABLED
               bCleanCandExist = false;
               xMotionEstimation(pu, origBuf, eRefPicList, cMvPred[refList][refIdxTemp], refIdxTemp,
-                                cMvTemp[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
+                                cMvTemp[refList][refIdxTemp], cMvInter[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
                                 aaiMvpIdx[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList], bCleanCandExist);
 #else
               xMotionEstimation(pu, origBuf, eRefPicList, cMvPred[refList][refIdxTemp], refIdxTemp,
@@ -3056,7 +3057,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
 #if GDR_ENABLED
             bCleanCandExist = false;
             xMotionEstimation(pu, origBuf, eRefPicList, cMvPred[refList][refIdxTemp], refIdxTemp,
-                              cMvTemp[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
+                              cMvTemp[refList][refIdxTemp], cMvInter[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
                               aaiMvpIdx[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList], bCleanCandExist);
                               // printf("inter ME %d,%d\n",cMvTemp[refList][refIdxTemp].hor,cMvTemp[refList][refIdxTemp].ver);
 #else
@@ -3473,13 +3474,13 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
                                   cMvTemp[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
                                   aaiMvpIdxBi[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList],
                                   bCleanCandExist, true, 
-                                  cMvTemp[refList][refIdxTemp], cMvTemp[refList_another][refIdx_another],
+                                  cMvInter[refList][refIdxTemp], cMvInter[refList_another][refIdx_another],
                                   cMvPredBi[refList][refIdxTemp], cMvPredBi[refList_another][refIdx_another],
                                   cMvTemp[refList][refIdxTemp], cMvTemp[refList_another][refIdx_another]);
               }
               else {
                 xMotionEstimation(pu, origBuf, eRefPicList, cMvPredBi[refList][refIdxTemp], refIdxTemp,
-                              cMvTemp[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
+                              cMvTemp[refList][refIdxTemp], cMvInter[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
                               aaiMvpIdxBi[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList],
                               bCleanCandExist, true);
               }
@@ -4938,7 +4939,7 @@ Distortion InterSearch::xGetAffineTemplateCost(PredictionUnit &pu, PelUnitBuf &o
 
 #if GDR_ENABLED
 void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred,
-                                    int refIdxPred, Mv &rcMv, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits,
+                                    int refIdxPred, Mv &rcMv, Mv &IMV, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits,
                                     Distortion &ruiCost, const AMVPInfo &amvpInfo, bool &rbCleanCandExist, bool bBi)
 #else
 void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred,
@@ -5135,15 +5136,17 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
       }
     }
     Mv best_P_InitMv = Mv(0,0);
+    IMV = rcMv;
+    IMV.changePrecision(MV_PRECISION_INT, MV_PRECISION_INTERNAL);
 #if GDR_ENABLED
         xPatternSearchFracDIF(pu, eRefPicList, refIdxPred, cStruct, best_P_InitMv, rcMv, cMvHalf, cMvQter, ruiCost, bBi, rbCleanCandExist);
 #else
     xPatternSearchFracDIF(pu, eRefPicList, refIdxPred, cStruct, rcMv, cMvHalf, cMvQter, ruiCost);
 #endif
     m_pcRdCost->setCostScale( 0 );
-    rcMv <<= 2;
-    rcMv  += ( cMvHalf <<= 1 );
-    rcMv  += cMvQter;
+    // rcMv <<= 2;
+    // rcMv  += ( cMvHalf <<= 1 );
+    rcMv  = cMvQter;
     
     uint32_t uiMvBits = m_pcRdCost->getBitsOfVectorWithPredictor( rcMv.getHor(), rcMv.getVer(), cStruct.imvShift );
     ruiBits += uiMvBits;
@@ -7016,6 +7019,205 @@ Distortion InterSearch::xOpticalFlow(const PredictionUnit &pu, PelUnitBuf &origB
   return ReturnCost;
 }
 
+
+Distortion InterSearch::xOpticalFlow_for_P(const PredictionUnit &pu, CPelBuf *cPatternRoi, IntTZSearchStruct &cStruct, Mv &rcMvIni,
+                               Mv &rcMvQter, bool bi)
+{
+  CPelBuf oriPxl = *cStruct.pcPatternKey;
+  int oriStride = cStruct.pcPatternKey->stride;
+  int width = cPatternRoi->width;
+  int height = cPatternRoi->height;
+  int preStride = cPatternRoi->width;
+  Mv iniMvInt = rcMvIni;
+  // printf("----------------------FME----------------------\n");
+  // printf("FME L0 init MV : (%d,%d)\n",iniMvInt.hor, iniMvInt.ver);
+
+  // get Pre
+  xGetPre_fme(iniMvInt, cStruct, true);
+  // get CST 
+  Distortion uiDist = std::numeric_limits<Distortion>::max();
+  // Distortion HADBi_tmp = 0;
+  int RES [128][128];
+  // HAD Verify
+   Pel *      pPred = m_filteredBlock[0][0][0];
+  {
+    // get RES
+    const Pel *pOrg  = oriPxl.buf;
+    for (int j = 0; j < height; j++)
+    {
+      for (int i = 0; i < width; i++)
+      {
+        RES[j][i] = (int16_t)pOrg[i] - pPred[i];
+      }
+      pOrg += oriStride;
+      pPred += width;
+    }
+    // Get HAD
+    {
+      int Res4x4[16] = {0};
+      TCoeff T_coe[16] = {0};
+      TCoeff T_temp[16] = {0};
+      int *Res_ptr = Res4x4;
+      for (int posY = 0; posY <  height; posY+=4){
+        for (int posX = 0; posX <  width; posX+=4){
+          int k = 0;
+          for (int j = posY; j < posY + 4; j++){
+            for (int i = posX; i < posX + 4; i++){
+              Res_ptr[k] = RES[j][i];
+              k++;
+            }
+          }
+          FME_fastForwardHAD_B4(Res_ptr, T_temp, 0, 4, 0, 0);
+          FME_fastForwardHAD_B4(T_temp, T_coe, 0, 4, 0, 0);
+          for (int num = 0; num < 16; num++) {
+            if (num == 0){
+              T_coe[num] = T_coe[num]/4;
+            }
+            uiDist += abs(T_coe[num]);
+          }
+        }
+      }
+    }
+  }
+  // get RD Cost
+  m_pcRdCost->setCostScale(0);
+  uiDist += m_pcRdCost->getCostOfVectorWithPredictor(iniMvInt.hor, iniMvInt.ver, cStruct.imvShift);
+  // printf("FME L0 init RDC %ld\n",uiDist);
+  // set iter times
+  int iIterTime = 1;
+  // for loop : use gradient to update mv
+  // get Error Matrix
+  // const int bufStride     = oriStride;
+  const int predBufStride = preStride;
+  int* pdDerivate[2];
+  pdDerivate[0] = m_tmpAffiDeri[0];
+  pdDerivate[1] = m_tmpAffiDeri[1];
+  // int iParaNum = 3;
+  // int64_t i64EqualCoeff[7][7]; // !!! actually, the arry size should be [3][3]
+  // double pdEqualCoeff[7][7];  // double** pdEqualCoeff;
+
+  // initial MV and CST
+  Mv MvTemp = iniMvInt;
+  Distortion uiCostBest = uiDist;
+  rcMvQter = iniMvInt;
+  for (int iter = 0; iter < iIterTime; iter++)    // iterate loop
+  {
+    //// get Grads
+    pPred = m_filteredBlock[0][0][0];
+    m_HorizontalSobelFilter(pPred, predBufStride, pdDerivate[0], width, width, height);
+    m_VerticalSobelFilter  (pPred, predBufStride, pdDerivate[1], width, width, height);
+
+    //// get L0 mv
+    double a0 = 0.0;
+    double b0 = 0.0;
+    double b1 = 0.0;
+    double c0 = 0.0;
+    double c1 = 0.0;
+    int derivateBufStride = width;
+    for (int j = 0; j < height; j++)
+    {
+      for (int i = 0; i < width; i++)
+      {
+        int idx = j * derivateBufStride + i;
+        double laplace_numerator   = sqrt((j - height / 2) * (j - height / 2) + (i - width / 2) * (i - width / 2));
+        double laplace_denominator = sqrt(height * width);
+        double laplace_weight      = exp(-laplace_numerator / laplace_denominator);
+        a0 += 100 * laplace_weight * pdDerivate[0][idx] * pdDerivate[0][idx];
+        b0 += 100 * laplace_weight * pdDerivate[0][idx] * pdDerivate[1][idx];
+        c0 += 100 * laplace_weight * pdDerivate[0][idx] * RES[j][i] * 8;
+        b1 += 100 * laplace_weight * pdDerivate[1][idx] * pdDerivate[1][idx];
+        c1 += 100 * laplace_weight * pdDerivate[1][idx] * RES[j][i] * 8;
+      }
+    }
+    double a1 = b0;
+    double P_DeltaMvL0[2];
+    Mv DltTMV;
+    // --------------------- P MV -----------------------------------------------------
+    {
+      P_DeltaMvL0[0] = (b1 * c0 - b0 * c1)/ (a0 * b1 - a1 * b0);
+      P_DeltaMvL0[1] = (a0 * c1 - a1 * c0)/ (a0 * b1 - a1 * b0);
+      P_DeltaMvL0[0] = Clip3(-8192.0, 8192.0, P_DeltaMvL0[0]);
+      P_DeltaMvL0[1] = Clip3(-8192.0, 8192.0, P_DeltaMvL0[1]);
+      DltTMV  = Mv((int) (P_DeltaMvL0[0] * 4 + SIGN(P_DeltaMvL0[0]) * 0.5) * (1 << 2),
+                   (int) (P_DeltaMvL0[1] * 4 + SIGN(P_DeltaMvL0[1]) * 0.5) * (1 << 2));
+      if ((a0 * b1 - a1 * b0) == 0.0){
+        DltTMV = Mv(0,0);
+      }
+      DltTMV.hor = Clip3(-16, 16, DltTMV.hor);
+      DltTMV.ver = Clip3(-16, 16, DltTMV.ver);
+      DltTMV.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+      MvTemp += DltTMV;
+      MvTemp.hor = Clip3(MV_MIN, MV_MAX, MvTemp.hor);
+      MvTemp.ver = Clip3(MV_MIN, MV_MAX, MvTemp.ver);
+      clipMv(MvTemp, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps);
+      // printf("FME L0 second MV : (%d,%d)\n",MvTemp.hor, MvTemp.ver);
+    }
+    // Pre
+    xGetPre_fme(MvTemp, cStruct, true); // !!! pre is not needed
+    
+
+    {
+      // get RES
+      const Pel *pOrg  = oriPxl.buf;
+      pPred = m_filteredBlock[0][0][0];
+      uiDist = 0;
+      for (int j = 0; j < height; j++)
+      {
+        for (int i = 0; i < width; i++)
+        {
+          RES[j][i] = (int16_t)pOrg[i] - pPred[i];
+        }
+        pOrg += oriStride;
+        pPred += width;
+      }
+      // Get HAD
+      {
+        int Res4x4[16] = {0};
+        TCoeff T_coe[16] = {0};
+        TCoeff T_temp[16] = {0};
+        int *Res_ptr = Res4x4;
+        for (int posY = 0; posY <  height; posY+=4){
+          for (int posX = 0; posX <  width; posX+=4){
+            int k = 0;
+            for (int j = posY; j < posY + 4; j++){
+              for (int i = posX; i < posX + 4; i++){
+                Res_ptr[k] = RES[j][i];
+                k++;
+              }
+            }
+            FME_fastForwardHAD_B4(Res_ptr, T_temp, 0, 4, 0, 0);
+            FME_fastForwardHAD_B4(T_temp, T_coe, 0, 4, 0, 0);
+            for (int num = 0; num < 16; num++) {
+              if (num == 0){
+                T_coe[num] = T_coe[num]/4;
+              }
+              uiDist += abs(T_coe[num]);
+            }
+          }
+        }
+      }
+    }
+    m_pcRdCost->setCostScale(0);
+    uiDist += m_pcRdCost->getCostOfVectorWithPredictor(MvTemp.hor, MvTemp.ver, cStruct.imvShift);
+    // store best cost and mv
+    if (uiDist < uiCostBest)
+    {
+        uiCostBest = uiDist;
+        rcMvQter = MvTemp;
+    }
+  }
+  // update cost
+  Distortion ReturnCost;
+  {
+    xGetPre_fme(rcMvQter, cStruct,  true);
+    m_pcRdCost->setDistParam(m_cDistParam, oriPxl, m_filteredBlock[0][0][0], width, m_lumaClpRng.bd,COMPONENT_Y, 0, 1, true);
+    ReturnCost = m_cDistParam.distFunc(m_cDistParam);
+    m_pcRdCost->setCostScale(0);
+    ReturnCost += m_pcRdCost->getCostOfVectorWithPredictor(rcMvQter.hor, rcMvQter.ver, 0);
+  }
+  return ReturnCost;
+}
+
 void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
                                         IntTZSearchStruct &cStruct, Mv &best_P_InitMv, const Mv &rcMvInt, Mv &rcMvHalf,
                                         Mv &rcMvQter, Distortion &ruiCost, bool bBi
@@ -7101,11 +7303,11 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
   //  2)
   //  //                                                                            + (rcMvHalf.ver << 1) +
   //  rcMvQter.ver);
-  //  // Mv test = rcMvInt;
-  //  //  test.changePrecision(MV_PRECISION_INT, MV_PRECISION_QUARTER);
+  Mv test = rcMvInt;
+  test.changePrecision(MV_PRECISION_INT, MV_PRECISION_QUARTER);
   //  Mv test = best_P_InitMv;
   //  test.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
-  //  xOpticalFlow(pu, &cPatternRoi, cStruct, test, rcMvQter, bBi);
+  xOpticalFlow_for_P(pu, &cPatternRoi, cStruct, test, rcMvQter, bBi);
   //  // printf("DF : Ini :  (%03d, %03d)  Dlt : (%03d, %03d)  MV : (%03d, %03d)\n", best_P_InitMv.hor,
   //  best_P_InitMv.ver,
   //  //                                                                            rcMvQter.hor - best_P_InitMv.hor,
