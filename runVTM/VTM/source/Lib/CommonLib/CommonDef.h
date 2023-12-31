@@ -42,8 +42,16 @@
 #include <iostream>
 #include <iomanip>
 #include <limits>
-
-
+//---------------------------
+#define Scharr                0
+#define sobel_5x5             0
+//---------------------------
+#define Gauss_Pre_Filter      1
+//---------------------------
+#define Iter                  0
+//---------------------------
+#define Res                  0
+//---------------------------
 #if _MSC_VER > 1000
 // disable "signed and unsigned mismatch"
 #pragma warning( disable : 4018 )

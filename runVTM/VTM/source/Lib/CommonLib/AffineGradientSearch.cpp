@@ -71,13 +71,43 @@ void AffineGradientSearch::xHorizontalSobelFilter( Pel *const pPred, const int p
     {
       int iCenter = j * predStride + k;
 
+      #if Scharr
       pDerivate[j * derivateBufStride + k] =
-        (pPred[iCenter + 1 - predStride] -
-          pPred[iCenter - 1 - predStride] +
-          (pPred[iCenter + 1] << 1) -
-          (pPred[iCenter - 1] << 1) +
-          pPred[iCenter + 1 + predStride] -
-          pPred[iCenter - 1 + predStride]);
+        ( 3 * (pPred[iCenter + 1 - predStride] - pPred[iCenter - 1 - predStride]) +
+         10 * (pPred[iCenter + 1]              - pPred[iCenter - 1])              +
+          3 *( pPred[iCenter + 1 + predStride] - pPred[iCenter - 1 + predStride]) )/5;
+      
+      #elif sobel_5x5
+        if ( ((2 < j) || (j  < (height - 2))) && ( (2 < k) || (k < (width -2))) ){
+            pDerivate[j * derivateBufStride + k] =
+                (( 2 *( pPred[iCenter - 2*predStride - 1 ] - pPred[iCenter - 2*predStride + 1 ]))  +   (1 *( pPred[iCenter - 2*predStride - 2 ] - pPred[iCenter - 2*predStride + 2 ]))
+              + ( 8 *( pPred[iCenter - 1*predStride - 1 ] - pPred[iCenter - 1*predStride + 1 ]))  +   (4 *( pPred[iCenter - 1*predStride - 2 ] - pPred[iCenter - 1*predStride + 2 ]))
+              + (12 *( pPred[iCenter - 0*predStride - 1 ] - pPred[iCenter - 0*predStride + 1 ]))  +   (6 *( pPred[iCenter - 0*predStride - 2 ] - pPred[iCenter - 0*predStride + 2 ]))
+              + ( 8 *( pPred[iCenter + 1*predStride - 1 ] - pPred[iCenter + 1*predStride + 1 ]))  +   (4 *( pPred[iCenter + 1*predStride - 2 ] - pPred[iCenter + 1*predStride + 2 ]))
+              + ( 2 *( pPred[iCenter + 2*predStride - 1 ] - pPred[iCenter + 2*predStride + 1 ]))  +   (1 *( pPred[iCenter + 2*predStride - 2 ] - pPred[iCenter + 2*predStride + 2 ]))
+                )/6;
+
+        }
+        else {
+        pDerivate[j * derivateBufStride + k] =
+          (pPred[iCenter + 1 - predStride] -
+            pPred[iCenter - 1 - predStride] +
+            (pPred[iCenter + 1] << 1) -
+            (pPred[iCenter - 1] << 1) +
+            pPred[iCenter + 1 + predStride] -
+            pPred[iCenter - 1 + predStride]);
+        }
+        #else
+          pDerivate[j * derivateBufStride + k] =
+            (pPred[iCenter + 1 - predStride] -
+              pPred[iCenter - 1 - predStride] +
+              (pPred[iCenter + 1] << 1) -
+              (pPred[iCenter - 1] << 1) +
+              pPred[iCenter + 1 + predStride] -
+              pPred[iCenter - 1 + predStride]);
+        #endif
+        
+
     }
 
     pDerivate[j * derivateBufStride] = pDerivate[j * derivateBufStride + 1];
@@ -104,13 +134,39 @@ void AffineGradientSearch::xVerticalSobelFilter( Pel *const pPred, const int pre
     {
       int iCenter = j * predStride + k;
 
+      #if Scharr
       pDerivate[j * derivateBufStride + k] =
-        (pPred[iCenter + predStride - 1] -
-          pPred[iCenter - predStride - 1] +
-          (pPred[iCenter + predStride] << 1) -
-          (pPred[iCenter - predStride] << 1) +
-          pPred[iCenter + predStride + 1] -
-          pPred[iCenter - predStride + 1]);
+        (3 * (pPred[iCenter + predStride - 1] - pPred[iCenter - predStride - 1]) +
+         10* (pPred[iCenter + predStride]     - pPred[iCenter - predStride]    ) +
+         3 * (pPred[iCenter + predStride + 1] - pPred[iCenter - predStride + 1]) )/5;
+      #elif sobel_5x5
+        if ( ((2 < j) || (j  < (height - 2))) && ( (2 < k) || (k < (width -2))) ){
+            pDerivate[j * derivateBufStride + k] =
+              (  1 * pPred[iCenter - 2*predStride - 2 ] + 4 * pPred[iCenter - 2*predStride - 1 ] + 6 * pPred[iCenter - 2*predStride + 0 ] + 4 * pPred[iCenter - 2*predStride + 1 ] + 1 * pPred[iCenter - 2*predStride + 2 ]
+              +  2 * pPred[iCenter - 1*predStride - 2 ] + 8 * pPred[iCenter - 1*predStride - 1 ] +12 * pPred[iCenter - 1*predStride + 0 ] + 8 * pPred[iCenter - 1*predStride + 1 ] + 2 * pPred[iCenter - 1*predStride + 2 ]
+              +  0 * pPred[iCenter - 0*predStride - 2 ] + 0 * pPred[iCenter - 0*predStride - 1 ] + 0 * pPred[iCenter - 0*predStride + 0 ] + 0 * pPred[iCenter - 0*predStride + 1 ] + 0 * pPred[iCenter - 0*predStride + 2 ]
+              -  2 * pPred[iCenter + 1*predStride - 2 ] - 8 * pPred[iCenter + 1*predStride - 1 ] -12 * pPred[iCenter + 1*predStride + 0 ] - 8 * pPred[iCenter + 1*predStride + 1 ] - 2 * pPred[iCenter + 1*predStride + 2 ]
+              -  1 * pPred[iCenter + 2*predStride - 2 ] - 4 * pPred[iCenter + 2*predStride - 1 ] - 6 * pPred[iCenter + 2*predStride + 0 ] - 4 * pPred[iCenter + 2*predStride + 1 ] - 1 * pPred[iCenter + 2*predStride + 2 ]
+                )/6;
+          }
+          else {
+        pDerivate[j * derivateBufStride + k] =
+          (pPred[iCenter + predStride - 1] -
+            pPred[iCenter - predStride - 1] +
+            (pPred[iCenter + predStride] << 1) -
+            (pPred[iCenter - predStride] << 1) +
+            pPred[iCenter + predStride + 1] -
+            pPred[iCenter - predStride + 1]);
+          }
+        #else
+          pDerivate[j * derivateBufStride + k] =
+            (pPred[iCenter + predStride - 1] -
+              pPred[iCenter - predStride - 1] +
+              (pPred[iCenter + predStride] << 1) -
+              (pPred[iCenter - predStride] << 1) +
+              pPred[iCenter + predStride + 1] -
+              pPred[iCenter - predStride + 1]);
+        #endif
     }
 
     pDerivate[k] = pDerivate[derivateBufStride + k];
@@ -141,6 +197,9 @@ void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride
       int iC[6];
 
       int idx = j * derivateBufStride + k;
+      #if Res 
+      pResidue
+      #endif
       int cx = ((k >> 2) << 2) + 2;
       if ( !b6Param )
       {

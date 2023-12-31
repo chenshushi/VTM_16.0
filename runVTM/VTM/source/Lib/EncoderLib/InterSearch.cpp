@@ -8243,6 +8243,24 @@ void InterSearch::xCheckBestAffineMVP( PredictionUnit &pu, AffineAMVPInfo &affin
   }
 }
 
+void Gauss_Filter(Pel* piOri, Pel* piDst, int Stride, int width, int height){
+  for ( int j = 2; j < height - 2; j++ )
+  {
+    for ( int k = 2; k < width - 2; k++ )
+    {
+      int iCenter = j * Stride + k;
+      piDst[j * Stride + k] =
+        (int16_t)( piOri[iCenter-2-Stride*2]* 1 + piOri[iCenter-1-Stride*2]* 4 + piOri[iCenter-0-Stride*2]* 7 + piOri[iCenter+1-Stride*2]* 4 + piOri[iCenter+2-Stride*2]* 1
+        + piOri[iCenter-2-Stride*1]* 4 + piOri[iCenter-1-Stride*1]*20 + piOri[iCenter-0-Stride*1]*33 + piOri[iCenter+1-Stride*1]*20 + piOri[iCenter+2-Stride*1]* 4
+        + piOri[iCenter-2-Stride*0]* 7 + piOri[iCenter-1-Stride*0]*33 + piOri[iCenter-0-Stride*0]*54 + piOri[iCenter+1-Stride*0]*33 + piOri[iCenter+2-Stride*0]* 7
+        + piOri[iCenter-2+Stride*1]* 4 + piOri[iCenter-1+Stride*1]*20 + piOri[iCenter-0+Stride*1]*33 + piOri[iCenter+1+Stride*1]*20 + piOri[iCenter+2+Stride*1]* 4
+        + piOri[iCenter-2+Stride*2]* 1 + piOri[iCenter-1+Stride*2]* 4 + piOri[iCenter-0+Stride*2]* 7 + piOri[iCenter+1+Stride*2]* 4 + piOri[iCenter+2+Stride*2]* 1
+        )/330;
+    }
+  }
+}
+
+
 #if GDR_ENABLED
 void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList,
                                           Mv acMvPred[3], int refIdxPred, Mv acMv[3], bool acMvSolid[3],
@@ -8427,7 +8445,9 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
   {
     iIterTime = bBi ? 5 : 7;
   }
+  #if Iter
   iIterTime = 1;
+  #endif
   for ( int iter=0; iter<iIterTime; iter++ )    // iterate loop
   {
     memcpy( prevIterMv[iter], acMvTemp, sizeof( Mv ) * 3 );
@@ -8437,6 +8457,14 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
     // get Error Matrix
     Pel* pOrg  = pBuf->Y().buf;
     Pel* pPred = predBuf.Y().buf;
+    #if Gauss_Pre_Filter
+     Pel* piOriflt = m_filteredBlock[0][0][0];
+    for ( int j=0; j< height; j++ )
+      for ( int i=0; i< width; i++ )
+        piOriflt[j*predBufStride+i] = pPred[j*predBufStride+i];
+
+     Gauss_Filter(piOriflt, pPred, predBufStride, width, height);
+    #endif
     for ( int j=0; j< height; j++ )
     {
       for ( int i=0; i< width; i++ )
@@ -8452,13 +8480,13 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
     // -2 0 2
     // -1 0 1
     pPred = predBuf.Y().buf;
-    m_HorizontalSobelFilter( pPred, predBufStride, pdDerivate[0], width, width, height );
+    xHorizontalSobelFilter( pPred, predBufStride, pdDerivate[0], width, width, height );
 
     // sobel y direction
     // -1 -2 -1
     //  0  0  0
     //  1  2  1
-    m_VerticalSobelFilter( pPred, predBufStride, pdDerivate[1], width, width, height );
+    xVerticalSobelFilter( pPred, predBufStride, pdDerivate[1], width, width, height );
 
     // solve delta x and y
     for ( int row = 0; row < iParaNum; row++ )
@@ -8466,7 +8494,7 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
       memset( &i64EqualCoeff[row][0], 0, iParaNum * sizeof( int64_t ) );
     }
 
-    m_EqualCoeffComputer( piError, width, pdDerivate, width, i64EqualCoeff, width, height
+    xEqualCoeffComputer( piError, width, pdDerivate, width, i64EqualCoeff, width, height
       , (pu.cu->affineType == AFFINEMODEL_6PARAM)
     );
 
