@@ -41,8 +41,21 @@
 // ====================================================================================================================
 
 #include "AffineGradientSearch.h"
-
-
+#include <cmath>
+//---------------------------
+#define Scharr                1
+#define sobel_5x5             0
+#define Sobel_141             0
+//---------------------------
+#define Gauss_Pre_Filter      0
+//---------------------------
+#define Iter                  0
+//---------------------------
+#define Res_3sigma            0
+//---------------------------
+#define Aff_Weight            1
+#define Aff_Weight_Laplace_sub            0
+//---------------------------
 //! \ingroup CommonLib
 //! \{
 
@@ -97,6 +110,14 @@ void AffineGradientSearch::xHorizontalSobelFilter( Pel *const pPred, const int p
             pPred[iCenter + 1 + predStride] -
             pPred[iCenter - 1 + predStride]);
         }
+      #elif  Sobel_141
+             pDerivate[j * derivateBufStride + k] =
+            (pPred[iCenter + 1 - predStride] -
+              pPred[iCenter - 1 - predStride] +
+              (pPred[iCenter + 1] *4) -
+              (pPred[iCenter - 1] *4) +
+              pPred[iCenter + 1 + predStride] -
+              pPred[iCenter - 1 + predStride]);
         #else
           pDerivate[j * derivateBufStride + k] =
             (pPred[iCenter + 1 - predStride] -
@@ -158,6 +179,14 @@ void AffineGradientSearch::xVerticalSobelFilter( Pel *const pPred, const int pre
             pPred[iCenter + predStride + 1] -
             pPred[iCenter - predStride + 1]);
           }
+        #elif  Sobel_141
+          pDerivate[j * derivateBufStride + k] =
+            (pPred[iCenter + predStride - 1] -
+              pPred[iCenter - predStride - 1] +
+              (pPred[iCenter + predStride] *4) -
+              (pPred[iCenter - predStride] *4) +
+              pPred[iCenter + predStride + 1] -
+              pPred[iCenter - predStride + 1]);
         #else
           pDerivate[j * derivateBufStride + k] =
             (pPred[iCenter + predStride - 1] -
@@ -188,6 +217,23 @@ void AffineGradientSearch::xVerticalSobelFilter( Pel *const pPred, const int pre
 void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], int width, int height, bool b6Param )
 {
   int affineParamNum = b6Param ? 6 : 4;
+  int mean = 0;
+  int Variance = 0;
+  for (int j = 0; j != height; j++){
+    for( int k = 0; k != width; k++ ){
+      int idx = j * derivateBufStride + k;
+      mean += pResidue[idx];
+    }
+  }
+  mean = mean/(height*width);
+
+  for (int j = 0; j != height; j++){
+    for( int k = 0; k != width; k++ ){
+      int idx = j * derivateBufStride + k;
+      Variance += (pResidue[idx] - mean) * (pResidue[idx] - mean);
+    }
+  }
+  Variance = sqrt(Variance/(height*width));
 
   for ( int j = 0; j != height; j++ )
   {
@@ -197,8 +243,10 @@ void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride
       int iC[6];
 
       int idx = j * derivateBufStride + k;
-      #if Res 
-      pResidue
+      #if Res_3sigma 
+      if (pResidue[idx] > (mean + 3*Variance) || pResidue[idx] < (mean - 3*Variance)  ) {
+        break;
+      }
       #endif
       int cx = ((k >> 2) << 2) + 2;
       if ( !b6Param )
@@ -217,6 +265,68 @@ void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride
         iC[4] = cy * ppDerivate[0][idx];
         iC[5] = cy * ppDerivate[1][idx];
       }
+      #if Aff_Weight
+      // double laplace_numerator    = sqrt((j - height / 2) * (j - height / 2) + (k - width / 2) * (k - width / 2));
+      // double laplace_denominator  = sqrt(height * width);
+      // double laplace_weight       = exp(-laplace_numerator / laplace_denominator);
+      //-------------------------------Scharr_weight1-----------------------------
+            // double laplace_numerator ;
+      // if (!b6Param) {
+      //   laplace_numerator    = sqrt(j*j + k*k)
+      //                        + sqrt(j*j + (k - width) * (k - width ));
+      // }
+      // else {
+      //   laplace_numerator    = sqrt(j*j + k*k)
+      //                        + sqrt(j*j + (k - width) * (k - width ))
+      //                        + sqrt((j - height ) * (j - height) +  k*k);
+      // }
+      // double laplace_denominator  = sqrt(height * width);
+      // double laplace_weight       = exp(-laplace_numerator / laplace_denominator);
+      //----------------------------Scharr_weight2-------------------------------------
+      // double laplace_numerator ;
+      // if (!b6Param) {
+      //   laplace_numerator    = sqrt(j*j + k*k)
+      //                        + sqrt(j*j + (k - width) * (k - width ));
+      // }
+      // else {
+      //   laplace_numerator    = sqrt(j*j + k*k)
+      //                        + sqrt(j*j + (k - width) * (k - width ))
+      //                        + sqrt((j - height ) * (j - height) +  k*k);
+      // }
+      // double laplace_denominator  = 2 * sqrt(height * width);
+      // double laplace_weight       = exp(-laplace_numerator / laplace_denominator);
+      //----------------------------Scharr_weight3-------------------------------------
+      // double laplace_weight       = 1 / laplace_numerator;
+      //---------------------Test_Scahrr_Weight_blk_laplace--------------------------------------------
+      double Weight_base = 1/(height*width)*(4*4);
+      double laplace_numerator    = sqrt((j -cy) * (j - cy) + (k - cx) * (k - cx));
+      double laplace_denominator  = sqrt(4 * 4);
+      double laplace_weight       = Weight_base * exp(-laplace_numerator / laplace_denominator);
+      //-----------------------------------------------------------------
+      if (cy == j && cx == k) {
+        laplace_weight = 1.0;
+      }
+      for ( int col = 0; col < affineParamNum; col++ )
+      {
+        for ( int row = 0; row < affineParamNum; row++ )
+        {
+          pEqualCoeff[col + 1][row] += (int64_t)iC[col] * iC[row]* int(laplace_weight * 100);
+        }
+        pEqualCoeff[col + 1][affineParamNum] += ((int64_t)iC[col] * pResidue[idx]* int(laplace_weight * 100)) << 3;
+      }
+      #elif Aff_Weight_Laplace_sub
+        double laplace_numerator    = sqrt((cy - height / 2) * (cy - height / 2) + (cx - width / 2) * (cx - width / 2));
+        double laplace_denominator  = sqrt(height * width);
+        double laplace_weight       = exp(-laplace_numerator / laplace_denominator);
+        for ( int col = 0; col < affineParamNum; col++ )
+        {
+          for ( int row = 0; row < affineParamNum; row++ )
+          {
+            pEqualCoeff[col + 1][row] += (int64_t)iC[col] * iC[row]* int(laplace_weight * 100);
+          }
+          pEqualCoeff[col + 1][affineParamNum] += ((int64_t)iC[col] * pResidue[idx]* int(laplace_weight * 100)) << 3;
+        }
+      #else
       for ( int col = 0; col < affineParamNum; col++ )
       {
         for ( int row = 0; row < affineParamNum; row++ )
@@ -225,6 +335,7 @@ void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride
         }
         pEqualCoeff[col + 1][affineParamNum] += ((int64_t)iC[col] * pResidue[idx]) << 3;
       }
+      #endif
     }
   }
 }
