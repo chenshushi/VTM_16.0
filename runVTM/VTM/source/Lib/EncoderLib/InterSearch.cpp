@@ -8451,6 +8451,13 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
   for ( int iter=0; iter<iIterTime; iter++ )    // iterate loop
   {
     memcpy( prevIterMv[iter], acMvTemp, sizeof( Mv ) * 3 );
+    int mvWeight[6]={0};
+    mvWeight[0] = prevIterMv[iter][0].hor;
+    mvWeight[1] = prevIterMv[iter][0].ver;
+    mvWeight[2] = prevIterMv[iter][1].hor;
+    mvWeight[3] = prevIterMv[iter][1].ver;
+    mvWeight[4] = prevIterMv[iter][2].hor;
+    mvWeight[5] = prevIterMv[iter][2].ver;
     /*********************************************************************************
      *                         use gradient to update mv
      *********************************************************************************/
@@ -8494,8 +8501,11 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
       memset( &i64EqualCoeff[row][0], 0, iParaNum * sizeof( int64_t ) );
     }
 
-    xEqualCoeffComputer( piError, width, pdDerivate, width, i64EqualCoeff, width, height
-      , (pu.cu->affineType == AFFINEMODEL_6PARAM)
+    // xEqualCoeffComputer( piError, width, pdDerivate, width, i64EqualCoeff, width, height
+    //   , (pu.cu->affineType == AFFINEMODEL_6PARAM)
+    // );
+    xEqualCoeffComputer_Weight( piError, width, pdDerivate, width, i64EqualCoeff, width, height
+      , (pu.cu->affineType == AFFINEMODEL_6PARAM), mvWeight
     );
 
     for ( int row = 0; row < iParaNum; row++ )

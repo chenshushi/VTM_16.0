@@ -43,9 +43,9 @@
 #include "AffineGradientSearch.h"
 #include <cmath>
 //---------------------------
-#define Scharr                1
+#define Scharr                0
 #define sobel_5x5             0
-#define Sobel_141             0
+#define Sobel_141             1
 //---------------------------
 #define Gauss_Pre_Filter      0
 //---------------------------
@@ -214,7 +214,7 @@ void AffineGradientSearch::xVerticalSobelFilter( Pel *const pPred, const int pre
   }
 }
 
-void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], int width, int height, bool b6Param )
+void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], int width, int height, bool b6Param)
 {
   int affineParamNum = b6Param ? 6 : 4;
   int mean = 0;
@@ -266,53 +266,169 @@ void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride
         iC[5] = cy * ppDerivate[1][idx];
       }
       #if Aff_Weight
+      //-------------------------------Method 1 -----------------------------
       // double laplace_numerator    = sqrt((j - height / 2) * (j - height / 2) + (k - width / 2) * (k - width / 2));
       // double laplace_denominator  = sqrt(height * width);
       // double laplace_weight       = exp(-laplace_numerator / laplace_denominator);
-      //-------------------------------Scharr_weight1-----------------------------
-            // double laplace_numerator ;
-      // if (!b6Param) {
-      //   laplace_numerator    = sqrt(j*j + k*k)
-      //                        + sqrt(j*j + (k - width) * (k - width ));
-      // }
-      // else {
-      //   laplace_numerator    = sqrt(j*j + k*k)
-      //                        + sqrt(j*j + (k - width) * (k - width ))
-      //                        + sqrt((j - height ) * (j - height) +  k*k);
-      // }
-      // double laplace_denominator  = sqrt(height * width);
-      // double laplace_weight       = exp(-laplace_numerator / laplace_denominator);
-      //----------------------------Scharr_weight2-------------------------------------
-      // double laplace_numerator ;
-      // if (!b6Param) {
-      //   laplace_numerator    = sqrt(j*j + k*k)
-      //                        + sqrt(j*j + (k - width) * (k - width ));
-      // }
-      // else {
-      //   laplace_numerator    = sqrt(j*j + k*k)
-      //                        + sqrt(j*j + (k - width) * (k - width ))
-      //                        + sqrt((j - height ) * (j - height) +  k*k);
-      // }
-      // double laplace_denominator  = 2 * sqrt(height * width);
-      // double laplace_weight       = exp(-laplace_numerator / laplace_denominator);
-      //----------------------------Scharr_weight3-------------------------------------
-      // double laplace_weight       = 1 / laplace_numerator;
-      //---------------------Test_Scahrr_Weight_blk_laplace--------------------------------------------
-      double Weight_base = 1/(height*width)*(4*4);
+      //-------------------------------Method 2 -----------------------------
+      double Weight_base = 1.0;
       double laplace_numerator    = sqrt((j -cy) * (j - cy) + (k - cx) * (k - cx));
-      double laplace_denominator  = sqrt(4 * 4);
+      double laplace_denominator  = 16;
       double laplace_weight       = Weight_base * exp(-laplace_numerator / laplace_denominator);
+      //--------------------------Method 3------------------------------
       //-----------------------------------------------------------------
-      if (cy == j && cx == k) {
-        laplace_weight = 1.0;
-      }
+      //-----------------------------------------------------------------
+      // double Weight_base = 1.0;
+      // printf("Weight_base : %f \n", Weight_base);
+      // double laplace_numerator    = sqrt((j -cy) * (j - cy) + (k - cx) * (k - cx));
+      // double laplace_denominator  = 4;
+      // double Weight_sub  = exp(-laplace_numerator / laplace_denominator) ;
+      // printf("Weight_sub : %f \n", Weight_sub);
+      // double laplace_weight       = Weight_base * exp(-laplace_numerator / laplace_denominator);
+      // printf("laplace_weight%f \n", laplace_weight);
+      // printf("laplace_weight * laplace_weight*1000 %d \n", int(laplace_weight * laplace_weight*1000));
+      //-----------------------------------------------------------------
       for ( int col = 0; col < affineParamNum; col++ )
       {
         for ( int row = 0; row < affineParamNum; row++ )
         {
-          pEqualCoeff[col + 1][row] += (int64_t)iC[col] * iC[row]* int(laplace_weight * 100);
+          pEqualCoeff[col + 1][row] += (int64_t)iC[col] * iC[row]* int(laplace_weight * laplace_weight*1000);
         }
-        pEqualCoeff[col + 1][affineParamNum] += ((int64_t)iC[col] * pResidue[idx]* int(laplace_weight * 100)) << 3;
+        pEqualCoeff[col + 1][affineParamNum] += ((int64_t)iC[col] * pResidue[idx]* int(laplace_weight * laplace_weight*1000)) << 3;
+      }
+      #elif Aff_Weight_Laplace_sub
+        double laplace_numerator    = sqrt((cy - height / 2) * (cy - height / 2) + (cx - width / 2) * (cx - width / 2));
+        double laplace_denominator  = sqrt(height * width);
+        double laplace_weight       = exp(-laplace_numerator / laplace_denominator);
+        for ( int col = 0; col < affineParamNum; col++ )
+        {
+          for ( int row = 0; row < affineParamNum; row++ )
+          {
+            pEqualCoeff[col + 1][row] += (int64_t)iC[col] * iC[row]* int(laplace_weight * 100);
+          }
+          pEqualCoeff[col + 1][affineParamNum] += ((int64_t)iC[col] * pResidue[idx]* int(laplace_weight * 100)) << 3;
+        }
+      #else
+      for ( int col = 0; col < affineParamNum; col++ )
+      {
+        for ( int row = 0; row < affineParamNum; row++ )
+        {
+          pEqualCoeff[col + 1][row] += (int64_t)iC[col] * iC[row];
+        }
+        pEqualCoeff[col + 1][affineParamNum] += ((int64_t)iC[col] * pResidue[idx]) << 3;
+      }
+      #endif
+    }
+  }
+}
+
+void AffineGradientSearch::xEqualCoeffComputer_Weight( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], int width, int height, bool b6Param, const int mv[6] )
+{
+  int affineParamNum = b6Param ? 6 : 4;
+#if Aff_Weight
+  const int iBit = MAX_CU_DEPTH;
+  int iDMvHorX, iDMvHorY, iDMvVerX, iDMvVerY;
+  iDMvHorX = (mv[2] - mv[0]) * (1 << (iBit - floorLog2(width)));
+  iDMvHorY = (mv[3] - mv[1]) * (1 << (iBit - floorLog2(width)));
+  if ( b6Param )
+  {
+    iDMvVerX = (mv[4] - mv[0]) * (1 << (iBit - floorLog2(height)));
+    iDMvVerY = (mv[5] - mv[1]) * (1 << (iBit - floorLog2(height)));
+  }
+  else
+  {
+    iDMvVerX = -iDMvHorY;
+    iDMvVerY =  iDMvHorX;
+  }
+
+  int iMvScaleHor = mv[0] * (1 << iBit);
+  int iMvScaleVer = mv[1] * (1 << iBit);
+#endif
+  for ( int j = 0; j != height; j++ )
+  {
+    int cy = ((j >> 2) << 2) + 2;
+    for ( int k = 0; k != width; k++ )
+    {
+      int iC[6];
+
+      int idx = j * derivateBufStride + k;
+      int cx = ((k >> 2) << 2) + 2;
+      if ( !b6Param )
+      {
+        iC[0] = ppDerivate[0][idx];
+        iC[1] = cx * ppDerivate[0][idx] + cy * ppDerivate[1][idx];
+        iC[2] = ppDerivate[1][idx];
+        iC[3] = cy * ppDerivate[0][idx] - cx * ppDerivate[1][idx];
+      }
+      else
+      {
+        iC[0] = ppDerivate[0][idx];
+        iC[1] = cx * ppDerivate[0][idx];
+        iC[2] = ppDerivate[1][idx];
+        iC[3] = cx * ppDerivate[1][idx];
+        iC[4] = cy * ppDerivate[0][idx];
+        iC[5] = cy * ppDerivate[1][idx];
+      }
+      #if Aff_Weight
+      //-------------------------------Method 1 -----------------------------
+      // double laplace_numerator    = sqrt((j - height / 2) * (j - height / 2) + (k - width / 2) * (k - width / 2));
+      // double laplace_denominator  = sqrt(height * width);
+      // double laplace_weight       = exp(-laplace_numerator / laplace_denominator);
+      //-------------------------------Method 2 -----------------------------
+      // double Weight_base = 1.0;
+      // double laplace_numerator    = sqrt((j -cy) * (j - cy) + (k - cx) * (k - cx));
+      // double laplace_denominator  = 16;
+      // double laplace_weight       = Weight_base * exp(-laplace_numerator / laplace_denominator);
+      //--------------------------Method 3------------------------------
+      //***** real MV *******
+      int iMvScaleTmpHor = iMvScaleHor + iDMvHorX * k + iDMvVerX * j;
+      int iMvScaleTmpVer = iMvScaleVer + iDMvHorY * k + iDMvVerY * j;
+      {
+        int nShift = 7;
+        const int nOffset = 1 << (nShift - 1);
+        iMvScaleTmpHor = (iMvScaleTmpHor + nOffset - (iMvScaleTmpHor >= 0)) >> nShift;
+        iMvScaleTmpVer = (iMvScaleTmpVer + nOffset - (iMvScaleTmpVer >= 0)) >> nShift;
+      }
+
+      iMvScaleTmpHor = Clip3( -(1 << 17), (1 << 17) - 1, iMvScaleTmpHor );
+      iMvScaleTmpVer = Clip3( -(1 << 17), (1 << 17) - 1, iMvScaleTmpVer );
+
+      //***** block MV *******
+      int iMvSubBlockHor = iMvScaleHor + iDMvHorX * cx + iDMvVerX * cy;
+      int iMvSubBlockVer = iMvScaleVer + iDMvHorY * cx + iDMvVerY * cy;
+      {
+        int nShift = 7;
+        const int nOffset = 1 << (nShift - 1);
+        iMvSubBlockHor = (iMvSubBlockHor + nOffset - (iMvSubBlockHor >= 0)) >> nShift;
+        iMvSubBlockVer = (iMvSubBlockVer + nOffset - (iMvSubBlockVer >= 0)) >> nShift;
+      }
+      iMvSubBlockHor = Clip3( -(1 << 17), (1 << 17) - 1, iMvSubBlockHor );
+      iMvSubBlockVer = Clip3( -(1 << 17), (1 << 17) - 1, iMvSubBlockVer );
+    //************
+      double Weight_base = 1.0;
+      double laplace_numerator    = sqrt((iMvScaleTmpHor -iMvSubBlockHor) * (iMvScaleTmpHor -iMvSubBlockHor) + (iMvScaleTmpVer - iMvSubBlockVer) * (iMvScaleTmpVer - iMvSubBlockVer));
+      double laplace_denominator  = 8;
+      // double Weight_sub  = exp(-laplace_numerator / laplace_denominator) ;
+      double laplace_weight       = Weight_base * exp(-laplace_numerator / laplace_denominator);
+      //-----------------------------------------------------------------
+      //-----------------------------------------------------------------
+      // double Weight_base = 1.0;
+      // printf("Weight_base : %f \n", Weight_base);
+      // double laplace_numerator    = sqrt((j -cy) * (j - cy) + (k - cx) * (k - cx));
+      // double laplace_denominator  = 4;
+      // double Weight_sub  = exp(-laplace_numerator / laplace_denominator) ;
+      // printf("Weight_sub : %f \n", Weight_sub);
+      // double laplace_weight       = Weight_base * exp(-laplace_numerator / laplace_denominator);
+      // printf("laplace_weight%f \n", laplace_weight);
+      // printf("laplace_weight * laplace_weight*1000 %d \n", int(laplace_weight * laplace_weight*1000));
+      //-----------------------------------------------------------------
+      for ( int col = 0; col < affineParamNum; col++ )
+      {
+        for ( int row = 0; row < affineParamNum; row++ )
+        {
+          pEqualCoeff[col + 1][row] += (int64_t)iC[col] * iC[row]* int(laplace_weight * laplace_weight*1000);
+        }
+        pEqualCoeff[col + 1][affineParamNum] += ((int64_t)iC[col] * pResidue[idx]* int(laplace_weight * laplace_weight*1000)) << 3;
       }
       #elif Aff_Weight_Laplace_sub
         double laplace_numerator    = sqrt((cy - height / 2) * (cy - height / 2) + (cx - width / 2) * (cx - width / 2));

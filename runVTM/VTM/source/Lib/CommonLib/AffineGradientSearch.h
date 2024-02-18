@@ -58,7 +58,7 @@ public:
   static void xVerticalSobelFilter( Pel *const pPred, const int predStride, int *const pDerivate, const int derivateBufStride, const int width, const int height );
 
   static void xEqualCoeffComputer( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], int width, int height, bool b6Param );
-
+  static void xEqualCoeffComputer_Weight( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], int width, int height, bool b6Param , const int mv[6]);
   AffineGradientSearch();
   ~AffineGradientSearch() {}
 
