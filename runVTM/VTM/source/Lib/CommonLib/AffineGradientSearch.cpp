@@ -42,20 +42,7 @@
 
 #include "AffineGradientSearch.h"
 #include <cmath>
-//---------------------------
-#define Scharr                0
-#define sobel_5x5             0
-#define Sobel_141             1
-//---------------------------
-#define Gauss_Pre_Filter      0
-//---------------------------
-#define Iter                  0
-//---------------------------
-#define Res_3sigma            0
-//---------------------------
-#define Aff_Weight            1
-#define Aff_Weight_Laplace_sub            0
-//---------------------------
+
 //! \ingroup CommonLib
 //! \{
 
@@ -265,7 +252,7 @@ void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride
         iC[4] = cy * ppDerivate[0][idx];
         iC[5] = cy * ppDerivate[1][idx];
       }
-      #if Aff_Weight
+      #if flgAffWeight
       //-------------------------------Method 1 -----------------------------
       // double laplace_numerator    = sqrt((j - height / 2) * (j - height / 2) + (k - width / 2) * (k - width / 2));
       // double laplace_denominator  = sqrt(height * width);
@@ -325,7 +312,7 @@ void AffineGradientSearch::xEqualCoeffComputer( Pel *pResidue, int residueStride
 void AffineGradientSearch::xEqualCoeffComputer_Weight( Pel *pResidue, int residueStride, int **ppDerivate, int derivateBufStride, int64_t( *pEqualCoeff )[7], int width, int height, bool b6Param, const int mv[6] )
 {
   int affineParamNum = b6Param ? 6 : 4;
-#if Aff_Weight
+#if flgAffWeight
   const int iBit = MAX_CU_DEPTH;
   int iDMvHorX, iDMvHorY, iDMvVerX, iDMvVerY;
   iDMvHorX = (mv[2] - mv[0]) * (1 << (iBit - floorLog2(width)));
@@ -369,7 +356,7 @@ void AffineGradientSearch::xEqualCoeffComputer_Weight( Pel *pResidue, int residu
         iC[4] = cy * ppDerivate[0][idx];
         iC[5] = cy * ppDerivate[1][idx];
       }
-      #if Aff_Weight
+      #if flgAffWeight
       //-------------------------------Method 1 -----------------------------
       // double laplace_numerator    = sqrt((j - height / 2) * (j - height / 2) + (k - width / 2) * (k - width / 2));
       // double laplace_denominator  = sqrt(height * width);
@@ -410,6 +397,10 @@ void AffineGradientSearch::xEqualCoeffComputer_Weight( Pel *pResidue, int residu
       double laplace_denominator  = 8;
       // double Weight_sub  = exp(-laplace_numerator / laplace_denominator) ;
       double laplace_weight       = Weight_base * exp(-laplace_numerator / laplace_denominator);
+      //-----------------------------------------------------------------
+      // double laplace_numerator    = 1.0;
+      // double laplace_denominator  = abs( iMvScaleTmpHor -iMvSubBlockHor ) + abs( iMvScaleTmpVer - iMvSubBlockVer );
+      // double laplace_weight       = laplace_numerator / laplace_denominator;
       //-----------------------------------------------------------------
       //-----------------------------------------------------------------
       // double Weight_base = 1.0;

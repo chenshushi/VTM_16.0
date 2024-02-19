@@ -8228,6 +8228,7 @@ void Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dAffin
 }
 void Fix_Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dAffinePara)
 {
+  #if flgFixPoint
   for (int k = 0; k < order; k++)
   {
     dAffinePara[k] = 0.;
@@ -8295,6 +8296,68 @@ void Fix_Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dA
   {
     dAffinePara[i] = dEqualCoeff[i + 1][order];
   }
+  #else
+    for (int k = 0; k < order; k++)
+  {
+    dAffinePara[k] = 0.;
+  }
+
+  // row echelon
+  for (int i = 1; i < order + 1; i++)
+  {
+    // find column max
+    double temp = fabs(dEqualCoeff[i][i-1]);
+    int tempIdx = i;
+    for (int m = i + 1; m < order + 1; m++)
+    {
+      if ( fabs(dEqualCoeff[m][i-1]) > temp )
+      {
+        temp = fabs(dEqualCoeff[m][i-1]);
+        tempIdx = m;
+      }
+    }
+
+    // swap line
+    if ( tempIdx != i )
+    {
+      for (int j = 0; j < order + 1; j++)
+      {
+        dEqualCoeff[0][j] = dEqualCoeff[i][j];
+        dEqualCoeff[i][j] = dEqualCoeff[tempIdx][j];
+        dEqualCoeff[tempIdx][j] = dEqualCoeff[0][j];
+      }
+    }
+
+    // elimination first column
+    if ( dEqualCoeff[i][i - 1] == 0. )
+    {
+      return;
+    }
+    // 
+    double first_element;
+    first_element = dEqualCoeff[i][i-1];
+    for (int j = i-1; j < order + 1; j++)
+      {
+        dEqualCoeff[i][j] = dEqualCoeff[i][j] / first_element;
+      }
+ 
+    for (int m = 1; m < order + 1; m++)
+    {
+      if(m != i) {
+        first_element = dEqualCoeff[m][i-1];
+        for (int j = i-1; j < order + 1; j++)
+        {
+          dEqualCoeff[m][j] = dEqualCoeff[m][j] - first_element * dEqualCoeff[i][j];
+        }
+      }
+    }
+  }
+
+  for (int i = 0; i < order; i++)
+  {
+    dAffinePara[i] = dEqualCoeff[i + 1][order];
+  }
+  #endif
 }
 
 void InterSearch::xCheckBestAffineMVP( PredictionUnit &pu, AffineAMVPInfo &affineAMVPInfo, RefPicList eRefPicList, Mv acMv[3], Mv acMvPred[3], int& riMVPIdx, uint32_t& ruiBits, Distortion& ruiCost )
@@ -8590,7 +8653,7 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
   {
     iIterTime = bBi ? 5 : 7;
   }
-  #if Iter
+  #if flgIter
   iIterTime = 1;
   #endif
   for ( int iter=0; iter<iIterTime; iter++ )    // iterate loop
@@ -8664,9 +8727,11 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
     double dAffinePara[6];
     double dDeltaMv[6]={0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
     Mv acDeltaMv[3];
-
-    // solveEqual( pdEqualCoeff, affineParaNum, dAffinePara );
+    #if flgGaussJordan
+    solveEqual( pdEqualCoeff, affineParaNum, dAffinePara );
+    #else
     Fix_Gauss_Jordan_solveEqual(pdEqualCoeff, affineParaNum, dAffinePara);
+    #endif
 
     // convert to delta mv
     dDeltaMv[0] = dAffinePara[0];
@@ -8908,7 +8973,11 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
 
   const uint32_t mvShiftTable[3] = {MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL - MV_PRECISION_INTERNAL, MV_PRECISION_INTERNAL - MV_PRECISION_INT};
   const uint32_t mvShift = mvShiftTable[pu.cu->imv];
+  #if flgBMA
+  if (1)
+  #else
   if (uiCostBest <= AFFINE_ME_LIST_MVP_TH*m_hevcCost)
+  #endif
   {
 
     Mv mvPredTmp[3] = { acMvPred[0], acMvPred[1], acMvPred[2] };
@@ -8931,9 +9000,12 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
         checkCPMVRdCost(acMvTemp);
       }
     }
-
     //keep the rotation/zoom;
+    #if flgBMA
+    if (false)
+    #else
     if (mvME[0] != mvPredTmp[0])
+    #endif
     {
       ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
       for (int i = 1; i < mvNum; i++)
@@ -8946,7 +9018,11 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
     }
 
     //keep the translation;
+    #if flgBMA
+    if (false)
+    #else
     if (pu.cu->affineType == AFFINEMODEL_6PARAM && mvME[1] != (mvPredTmp[1] + dMv) && mvME[2] != (mvPredTmp[2] + dMv))
+    #endif
     {
       ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
 
@@ -8964,10 +9040,18 @@ void InterSearch::xAffineMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBu
     {
       bool modelChange = false;
       //search the model parameters with finear granularity;
+      #if flgBMA
+      for (int j = 0; j < 1; j++)
+      #else
       for (int j = 0; j < mvNum; j++)
+      #endif
       {
         bool loopChange = false;
+        #if flgBMA
+        for (int iter = 0; iter < 1; iter++)
+        #else
         for (int iter = 0; iter < 2; iter++)
+        #endif
         {
           if (iter == 1 && !loopChange)
           {

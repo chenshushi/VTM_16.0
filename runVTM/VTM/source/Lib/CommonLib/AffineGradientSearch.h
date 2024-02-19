@@ -41,6 +41,33 @@
 
 #include "CommonDef.h"
 
+//---------------------------
+#define Scharr                0
+#define sobel_5x5             0
+
+//---------------------------
+#define Gauss_Pre_Filter      0
+
+
+//---------------------------
+#define Res_3sigma            0
+//--M1 : Weight--------------
+#define Sobel_141             1
+#define flgAffWeight          1
+#define Aff_Weight_Laplace_sub  0
+//--M2 : Iter & BMA-----------
+#define flgIter               0
+#define flgBMA                0
+//--M3 : GaussJordan---------
+#define flgGaussJordan        0
+//--M4 : FixPoint------------
+#define flgFixPoint           0
+//--M5 : HAD4 ---------------
+#define flgHAD4               0
+//--M6 : clip MV-------------
+#define flgClipMV             0
+//---------------------------
+
 //! \ingroup CommonLib
 //! \{
 
