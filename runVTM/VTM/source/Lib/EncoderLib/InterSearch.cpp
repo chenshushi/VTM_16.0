@@ -4553,7 +4553,13 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
         m_affineMotion.hevcCost[pu.cu->imv] = uiHevcCost;
       }
     }
+    #if flgClipMV
+    clipAMV = 1;
+    #else
+    clipAMV = 0;
+    #endif
     motionCompensation( pu, predBuf, REF_PIC_LIST_X );
+    clipAMV = 0;
     puIdx++;
   }
 

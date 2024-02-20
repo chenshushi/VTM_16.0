@@ -325,7 +325,8 @@ int main(int argc, char* argv[])
          (endClock - startClock) * 1.0 / CLOCKS_PER_SEC,
          encTime / 1000.0);
 #endif
-
+  #if flg_printf
+  fprintf(stdout, "\n\t\t\t==== clipAmv Num ====    \n\tTotal: %d\n\tsave_num\t: %d (%.5f %%)\n\n", numSafe +  numUnSafe , numSafe, (numSafe / ((numSafe +  numUnSafe) * 1.0f)*100));
   fprintf(stdout, "\t\t\t==== Iter Num ====    \n\tTotal_number: %d\n\titer_zero_num\t: %d (%.5f %%)\n\titer_one_num\t: %d (%.5f %%)\n\titer_two_num\t: %d (%.5f %%)\n\titer_three_num\t: %d (%.5f %%)\n\titer_four_num\t: %d (%.5f %%) ",
                     iter_blk_num,
                     iter_zero_num ,(iter_zero_num / (iter_blk_num * 1.0f)*100),
@@ -349,6 +350,7 @@ int main(int argc, char* argv[])
                     blk_16X8_num    ,(blk_16X8_num    / (affine_blk_num * 1.0f)*100),
                     blk_8X16_num    ,(blk_8X16_num    / (affine_blk_num * 1.0f)*100),
                     blk_8X8_num     ,(blk_8X8_num     / (affine_blk_num * 1.0f)*100));
+  #endif
   return 0;
 }
 

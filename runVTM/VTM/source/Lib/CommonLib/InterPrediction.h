@@ -49,6 +49,10 @@
 
 #include "RdCost.h"
 #include "ContextModelling.h"
+extern int clipAMV    ;
+extern int numSafe    ;
+extern int numUnSafe  ;
+
 // forward declaration
 class Mv;
 

@@ -43,7 +43,9 @@
 
 #include <memory.h>
 #include <algorithm>
-
+int numSafe         = 0;
+int numUnSafe       = 0;
+int clipAMV         = 0;
 //! \ingroup CommonLib
 //! \{
 
@@ -1033,7 +1035,15 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
   }
   int scaleXLuma = ::getComponentScaleX(COMPONENT_Y, chFmt);
   int scaleYLuma = ::getComponentScaleY(COMPONENT_Y, chFmt);
-
+  Mv baseMv(0, 0);
+  int dltMV = 3;
+  int blkCenterHor = 0;
+  int blkCenterVer = 0;
+  int roundBaseHor = 0;
+  int roundBaseVer = 0;
+  int roundHor = 0;
+  int roundVer = 0;
+  bool flgBaseBlk = false;
   if (genChromaMv && pu.chromaFormat != CHROMA_444)
   {
     CHECK(compID == COMPONENT_Y, "Chroma only subblock MV calculation should not apply to Luma");
@@ -1116,6 +1126,79 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
         iMvScaleTmpHor = tmpMv.getHor();
         iMvScaleTmpVer = tmpMv.getVer();
 
+        flgBaseBlk = false;
+        // B2
+        // if (((w/4)%2) == 0){
+        //   flgBaseBlk = true;
+              // blkCenterHor = (w >> 3) << 3;
+              // blkCenterVer = h;
+        // }
+        // // B4
+        // if (((w/4)%4) == 0){
+        //   flgBaseBlk = true;
+          // blkCenterHor = (w >> 4) << 4;
+          // blkCenterVer = h;
+        // }
+        // B8
+        // if ((((w/4)%4) == 0) && (((h/4)%2) == 0)){
+        //   flgBaseBlk = true;
+          // blkCenterHor = (w >> 4) << 4;
+          // blkCenterVer = (h >> 3) << 3;
+        // }
+        // B16
+          // printf("used clipAmv %d \n",clipAMV);
+        if (clipAMV == 1){
+          if ((((w/4)%4) == 0) && (((h/4)%4) == 0)){
+            flgBaseBlk = true;
+            baseMv.hor = iMvScaleTmpHor;
+            baseMv.ver = iMvScaleTmpVer;
+            roundBaseHor = roundHor = (iMvScaleTmpHor >= 0) ? (iMvScaleTmpHor/16) : (-(-iMvScaleTmpHor - 1)/16 -1);
+            roundBaseVer = roundVer = (iMvScaleTmpVer >= 0) ? (iMvScaleTmpVer/16) : (-(-iMvScaleTmpVer - 1)/16 -1);
+            // printf(" BaseMV {%03d, %03d}", baseMv.hor, baseMv.ver);
+            // printf("{%03d, %03d}", w, h);
+          }
+          else {
+            blkCenterHor = (w >> 4) << 4;
+            blkCenterVer = (h >> 4) << 4;
+            // printf("{%03d, %03d}", blkCenterHor, blkCenterVer);
+            
+            baseMv = m_storedMv[blkCenterVer / AFFINE_MIN_BLOCK_SIZE * MVBUFFER_SIZE + blkCenterHor / AFFINE_MIN_BLOCK_SIZE];
+            // printf(" BaseMV {%03d, %03d}", baseMv.hor, baseMv.ver);
+            roundBaseHor = (baseMv.hor >= 0) ? (baseMv.hor/16) : (-(-baseMv.hor - 1)/16 -1);
+            roundBaseVer = (baseMv.ver >= 0) ? (baseMv.ver/16) : (-(-baseMv.ver - 1)/16 -1);
+            ////
+            roundHor = (iMvScaleTmpHor >= 0) ? (iMvScaleTmpHor/16) : (-(-iMvScaleTmpHor - 1)/16 -1);
+            roundVer = (iMvScaleTmpVer >= 0) ? (iMvScaleTmpVer/16) : (-(-iMvScaleTmpVer - 1)/16 -1);
+          }
+
+          // ------- dltMV != 0 ---------------
+          // if (  ( ((baseMv.hor - dltMV ) <= roundHor ) && ( roundHor < (baseMv.hor + dltMV )) )
+          //    && ( ((baseMv.ver - dltMV ) <= roundVer ) && ( roundVer < (baseMv.ver + dltMV )) ) ) {
+          // ------- dltMV = 0 ---------------
+          if (flgBaseBlk) {
+            // printf(" MV [[%03d, %03d]]", roundHor, roundVer);
+            // printf(" * ");
+            numSafe ++;
+          }
+          else {
+            // ------- dltMV = 0 ---------------
+            // if ((roundBaseHor == roundHor ) && ( roundBaseVer == roundVer  )) {
+            ////------- dltMV != 0 ---------------
+            if (  ( ((roundBaseHor - dltMV ) <= roundHor ) && ( roundHor < (roundBaseHor + dltMV )) )
+              && ( ((roundBaseVer - dltMV ) <= roundVer ) && ( roundVer < (roundBaseVer + dltMV )) ) ) {
+              numSafe ++;
+              // printf(" MV  (%03d, %03d) ", roundHor, roundVer);
+              // printf(" * ");
+            }
+            else {
+              numUnSafe ++;
+              // printf(" xMV (%03d, %03d) ", roundHor, roundVer);
+              // printf(" x ");
+              // Clip3( (roundBaseHor - dltMV)*16,  (roundBaseHor + dltMV)*16, mvScaleTmpHor );
+              // Clip3( (roundBaseVer - dltMV)*16,  (roundBaseVer + dltMV)*16, mvScaleTmpVer );
+            }
+          }
+        }
         // clip and scale
         if ( refPic->isWrapAroundEnabled( pu.cs->pps ) )
         {

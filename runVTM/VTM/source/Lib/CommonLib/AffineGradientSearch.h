@@ -48,7 +48,7 @@
 //---------------------------
 #define Gauss_Pre_Filter      0
 
-
+#define flg_printf            0
 //---------------------------
 #define Res_3sigma            0
 //--M1 : Weight--------------
