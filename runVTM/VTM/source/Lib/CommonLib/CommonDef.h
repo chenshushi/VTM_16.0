@@ -43,6 +43,37 @@
 #include <iomanip>
 #include <limits>
 
+//---------------------------
+#define Scharr                  0
+#define sobel_5x5               0
+
+//---------------------------
+#define Gauss_Pre_Filter        0
+
+#define flg_printf              1
+//---------------------------
+#define Res_3sigma              0
+//--M1 : Weight--------------
+#define Sobel_141               0
+#define flgAffWeight            0
+#define Aff_Weight_Laplace_sub  0
+//--M2 : Iter & BMA-----------
+#define flgIter                 0
+#define flgBMA                  0
+//--M3 : GaussJordan---------
+#define flgGaussJordan          0
+//--M4 : FixPoint------------
+#define flgFixPoint             0
+//--M5 : HAD4 ---------------
+#define flgHAD4                 0
+//--M6 : clip MV-------------
+#define flgClipMV               1
+#define clipMvB2                1
+#define clipMvB4                0
+#define clipMvB8                0
+#define clipMvB16               0
+//---------------------------
+
 #if _MSC_VER > 1000
 // disable "signed and unsigned mismatch"
 #pragma warning( disable : 4018 )

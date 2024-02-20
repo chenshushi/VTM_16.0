@@ -1036,7 +1036,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
   int scaleXLuma = ::getComponentScaleX(COMPONENT_Y, chFmt);
   int scaleYLuma = ::getComponentScaleY(COMPONENT_Y, chFmt);
   Mv baseMv(0, 0);
-  int dltMV = 3;
+  int dltMV = 2; 
   int blkCenterHor = 0;
   int blkCenterVer = 0;
   int roundBaseHor = 0;
@@ -1127,28 +1127,30 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
         iMvScaleTmpVer = tmpMv.getVer();
 
         flgBaseBlk = false;
-        // B2
-        // if (((w/4)%2) == 0){
-        //   flgBaseBlk = true;
-              // blkCenterHor = (w >> 3) << 3;
-              // blkCenterVer = h;
-        // }
-        // // B4
-        // if (((w/4)%4) == 0){
-        //   flgBaseBlk = true;
-          // blkCenterHor = (w >> 4) << 4;
-          // blkCenterVer = h;
-        // }
-        // B8
-        // if ((((w/4)%4) == 0) && (((h/4)%2) == 0)){
-        //   flgBaseBlk = true;
-          // blkCenterHor = (w >> 4) << 4;
-          // blkCenterVer = (h >> 3) << 3;
-        // }
-        // B16
-          // printf("used clipAmv %d \n",clipAMV);
+
+        // printf("used clipAmv %d \n",clipAMV);
         if (clipAMV == 1){
+          int shiftHor = 4;
+          int shiftVer = 4;
+          #if clipMvB2
+          shiftHor = 3;
+          shiftVer = 0;
+          if (((w/4)%2) == 0){
+          #elif clipMvB4
+          shiftHor = 4;
+          shiftVer = 0;
+          if (((w/4)%4) == 0){
+          #elif clipMvB8
+          shiftHor = 4;
+          shiftVer = 3;
+          if ((((w/4)%4) == 0) && (((h/4)%2) == 0)){
+          #elif clipMvB16
+          shiftHor = 4;
+          shiftVer = 4;
           if ((((w/4)%4) == 0) && (((h/4)%4) == 0)){
+          #else
+          if ((((w/4)%4) == 0) && (((h/4)%4) == 0)){
+          #endif
             flgBaseBlk = true;
             baseMv.hor = iMvScaleTmpHor;
             baseMv.ver = iMvScaleTmpVer;
@@ -1158,8 +1160,8 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
             // printf("{%03d, %03d}", w, h);
           }
           else {
-            blkCenterHor = (w >> 4) << 4;
-            blkCenterVer = (h >> 4) << 4;
+            blkCenterHor = (w >> shiftHor) << shiftHor;
+            blkCenterVer = (h >> shiftVer) << shiftVer;
             // printf("{%03d, %03d}", blkCenterHor, blkCenterVer);
             
             baseMv = m_storedMv[blkCenterVer / AFFINE_MIN_BLOCK_SIZE * MVBUFFER_SIZE + blkCenterHor / AFFINE_MIN_BLOCK_SIZE];
