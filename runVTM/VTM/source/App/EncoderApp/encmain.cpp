@@ -326,6 +326,8 @@ int main(int argc, char* argv[])
          encTime / 1000.0);
 #endif
   #if flg_printf
+  printf("=================Time=================\n");
+  printf("\ttimeOfAme          : %12.3f\n", sumTime * 1.0 / CLOCKS_PER_SEC);
   fprintf(stdout, "\n\t\t\t==== clipAmv Num ====    \n\tTotal: %d\n\tsave_num\t: %d (%.5f %%)\n\n", numSafe +  numUnSafe , numSafe, (numSafe / ((numSafe +  numUnSafe) * 1.0f)*100));
   fprintf(stdout, "\t\t\t==== Iter Num ====    \n\tTotal_number: %d\n\titer_zero_num\t: %d (%.5f %%)\n\titer_one_num\t: %d (%.5f %%)\n\titer_two_num\t: %d (%.5f %%)\n\titer_three_num\t: %d (%.5f %%)\n\titer_four_num\t: %d (%.5f %%) ",
                     iter_blk_num,

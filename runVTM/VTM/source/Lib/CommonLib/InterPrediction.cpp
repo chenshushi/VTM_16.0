@@ -46,6 +46,9 @@
 int numSafe         = 0;
 int numUnSafe       = 0;
 int clipAMV         = 0;
+clock_t srtartTime  = 0;
+clock_t endTime     = 0;
+clock_t sumTime     = 0;
 //! \ingroup CommonLib
 //! \{
 
@@ -1036,7 +1039,7 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
   int scaleXLuma = ::getComponentScaleX(COMPONENT_Y, chFmt);
   int scaleYLuma = ::getComponentScaleY(COMPONENT_Y, chFmt);
   Mv baseMv(0, 0);
-  int dltMV = 2; 
+  int dltMV = 3; 
   int blkCenterHor = 0;
   int blkCenterVer = 0;
   int roundBaseHor = 0;
@@ -1196,8 +1199,8 @@ void InterPrediction::xPredAffineBlk(const ComponentID &compID, const Prediction
               numUnSafe ++;
               // printf(" xMV (%03d, %03d) ", roundHor, roundVer);
               // printf(" x ");
-              // Clip3( (roundBaseHor - dltMV)*16,  (roundBaseHor + dltMV)*16, mvScaleTmpHor );
-              // Clip3( (roundBaseVer - dltMV)*16,  (roundBaseVer + dltMV)*16, mvScaleTmpVer );
+              iMvScaleTmpHor = CDC_FUNC_CLP( (roundBaseHor - dltMV)*16,  (roundBaseHor + dltMV)*16 + 15, iMvScaleTmpHor );
+              iMvScaleTmpHor = CDC_FUNC_CLP( (roundBaseVer - dltMV)*16,  (roundBaseVer + dltMV)*16 + 15, iMvScaleTmpVer );
             }
           }
         }

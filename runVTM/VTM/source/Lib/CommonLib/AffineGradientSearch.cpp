@@ -313,29 +313,41 @@ void AffineGradientSearch::xEqualCoeffComputer_Weight( Pel *pResidue, int residu
 {
   int affineParamNum = b6Param ? 6 : 4;
 #if flgAffWeight
-  const int iBit = MAX_CU_DEPTH;
-  int iDMvHorX, iDMvHorY, iDMvVerX, iDMvVerY;
-  iDMvHorX = (mv[2] - mv[0]) * (1 << (iBit - floorLog2(width)));
-  iDMvHorY = (mv[3] - mv[1]) * (1 << (iBit - floorLog2(width)));
-  if ( b6Param )
-  {
-    iDMvVerX = (mv[4] - mv[0]) * (1 << (iBit - floorLog2(height)));
-    iDMvVerY = (mv[5] - mv[1]) * (1 << (iBit - floorLog2(height)));
-  }
-  else
-  {
-    iDMvVerX = -iDMvHorY;
-    iDMvVerY =  iDMvHorX;
-  }
+  // const int iBit = MAX_CU_DEPTH;
+  // int iDMvHorX, iDMvHorY, iDMvVerX, iDMvVerY;
+  // iDMvHorX = (mv[2] - mv[0]) * (1 << (iBit - floorLog2(width)));
+  // iDMvHorY = (mv[3] - mv[1]) * (1 << (iBit - floorLog2(width)));
+  // if ( b6Param )
+  // {
+  //   iDMvVerX = (mv[4] - mv[0]) * (1 << (iBit - floorLog2(height)));
+  //   iDMvVerY = (mv[5] - mv[1]) * (1 << (iBit - floorLog2(height)));
+  // }
+  // else
+  // {
+  //   iDMvVerX = -iDMvHorY;
+  //   iDMvVerY =  iDMvHorX;
+  // }
 
-  int iMvScaleHor = mv[0] * (1 << iBit);
-  int iMvScaleVer = mv[1] * (1 << iBit);
+  // int iMvScaleHor = mv[0] * (1 << iBit);
+  // int iMvScaleVer = mv[1] * (1 << iBit);
 #endif
   for ( int j = 0; j != height; j++ )
   {
     int cy = ((j >> 2) << 2) + 2;
     for ( int k = 0; k != width; k++ )
     {
+      #if flgRemove
+        // adjust the cal with 16x8 block
+        bool flg_skip_y = ((j%16 == 0) || (j%16 == 15)) ? true : false;
+        bool flg_skip_x = ((k%16 == 0) || (k%16 == 15)) ? true : false;
+        if (height > 14 && flg_skip_y) {
+          continue;
+        }
+        if (width > 14 && flg_skip_x) {
+          continue;
+        }
+      #endif
+
       int iC[6];
 
       int idx = j * derivateBufStride + k;
@@ -362,41 +374,41 @@ void AffineGradientSearch::xEqualCoeffComputer_Weight( Pel *pResidue, int residu
       // double laplace_denominator  = sqrt(height * width);
       // double laplace_weight       = exp(-laplace_numerator / laplace_denominator);
       //-------------------------------Method 2 -----------------------------
-      // double Weight_base = 1.0;
-      // double laplace_numerator    = sqrt((j -cy) * (j - cy) + (k - cx) * (k - cx));
-      // double laplace_denominator  = 16;
-      // double laplace_weight       = Weight_base * exp(-laplace_numerator / laplace_denominator);
-      //--------------------------Method 3------------------------------
-      //***** real MV *******
-      int iMvScaleTmpHor = iMvScaleHor + iDMvHorX * k + iDMvVerX * j;
-      int iMvScaleTmpVer = iMvScaleVer + iDMvHorY * k + iDMvVerY * j;
-      {
-        int nShift = 7;
-        const int nOffset = 1 << (nShift - 1);
-        iMvScaleTmpHor = (iMvScaleTmpHor + nOffset - (iMvScaleTmpHor >= 0)) >> nShift;
-        iMvScaleTmpVer = (iMvScaleTmpVer + nOffset - (iMvScaleTmpVer >= 0)) >> nShift;
-      }
-
-      iMvScaleTmpHor = Clip3( -(1 << 17), (1 << 17) - 1, iMvScaleTmpHor );
-      iMvScaleTmpVer = Clip3( -(1 << 17), (1 << 17) - 1, iMvScaleTmpVer );
-
-      //***** block MV *******
-      int iMvSubBlockHor = iMvScaleHor + iDMvHorX * cx + iDMvVerX * cy;
-      int iMvSubBlockVer = iMvScaleVer + iDMvHorY * cx + iDMvVerY * cy;
-      {
-        int nShift = 7;
-        const int nOffset = 1 << (nShift - 1);
-        iMvSubBlockHor = (iMvSubBlockHor + nOffset - (iMvSubBlockHor >= 0)) >> nShift;
-        iMvSubBlockVer = (iMvSubBlockVer + nOffset - (iMvSubBlockVer >= 0)) >> nShift;
-      }
-      iMvSubBlockHor = Clip3( -(1 << 17), (1 << 17) - 1, iMvSubBlockHor );
-      iMvSubBlockVer = Clip3( -(1 << 17), (1 << 17) - 1, iMvSubBlockVer );
-    //************
       double Weight_base = 1.0;
-      double laplace_numerator    = sqrt((iMvScaleTmpHor -iMvSubBlockHor) * (iMvScaleTmpHor -iMvSubBlockHor) + (iMvScaleTmpVer - iMvSubBlockVer) * (iMvScaleTmpVer - iMvSubBlockVer));
-      double laplace_denominator  = 8;
-      // double Weight_sub  = exp(-laplace_numerator / laplace_denominator) ;
+      double laplace_numerator    = sqrt((j -cy) * (j - cy) + (k - cx) * (k - cx));
+      double laplace_denominator  = 16;
       double laplace_weight       = Weight_base * exp(-laplace_numerator / laplace_denominator);
+      //--------------------------Method 3------------------------------
+    //   //***** real MV *******
+    //   int iMvScaleTmpHor = iMvScaleHor + iDMvHorX * k + iDMvVerX * j;
+    //   int iMvScaleTmpVer = iMvScaleVer + iDMvHorY * k + iDMvVerY * j;
+    //   {
+    //     int nShift = 7;
+    //     const int nOffset = 1 << (nShift - 1);
+    //     iMvScaleTmpHor = (iMvScaleTmpHor + nOffset - (iMvScaleTmpHor >= 0)) >> nShift;
+    //     iMvScaleTmpVer = (iMvScaleTmpVer + nOffset - (iMvScaleTmpVer >= 0)) >> nShift;
+    //   }
+
+    //   iMvScaleTmpHor = Clip3( -(1 << 17), (1 << 17) - 1, iMvScaleTmpHor );
+    //   iMvScaleTmpVer = Clip3( -(1 << 17), (1 << 17) - 1, iMvScaleTmpVer );
+
+    //   //***** block MV *******
+    //   int iMvSubBlockHor = iMvScaleHor + iDMvHorX * cx + iDMvVerX * cy;
+    //   int iMvSubBlockVer = iMvScaleVer + iDMvHorY * cx + iDMvVerY * cy;
+    //   {
+    //     int nShift = 7;
+    //     const int nOffset = 1 << (nShift - 1);
+    //     iMvSubBlockHor = (iMvSubBlockHor + nOffset - (iMvSubBlockHor >= 0)) >> nShift;
+    //     iMvSubBlockVer = (iMvSubBlockVer + nOffset - (iMvSubBlockVer >= 0)) >> nShift;
+    //   }
+    //   iMvSubBlockHor = Clip3( -(1 << 17), (1 << 17) - 1, iMvSubBlockHor );
+    //   iMvSubBlockVer = Clip3( -(1 << 17), (1 << 17) - 1, iMvSubBlockVer );
+    // //************
+    //   double Weight_base = 1.0;
+    //   double laplace_numerator    = sqrt((iMvScaleTmpHor -iMvSubBlockHor) * (iMvScaleTmpHor -iMvSubBlockHor) + (iMvScaleTmpVer - iMvSubBlockVer) * (iMvScaleTmpVer - iMvSubBlockVer));
+    //   double laplace_denominator  = 8;
+    //   // double Weight_sub  = exp(-laplace_numerator / laplace_denominator) ;
+    //   double laplace_weight       = Weight_base * exp(-laplace_numerator / laplace_denominator);
       //-----------------------------------------------------------------
       // double laplace_numerator    = 1.0;
       // double laplace_denominator  = abs( iMvScaleTmpHor -iMvSubBlockHor ) + abs( iMvScaleTmpVer - iMvSubBlockVer );
