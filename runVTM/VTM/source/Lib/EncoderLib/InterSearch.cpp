@@ -8757,9 +8757,9 @@ srtartTime = clock();
     double dDeltaMv[6]={0.0, 0.0, 0.0, 0.0, 0.0, 0.0,};
     Mv acDeltaMv[3];
     #if flgGaussJordan
-    solveEqual( pdEqualCoeff, affineParaNum, dAffinePara );
-    #else
     Fix_Gauss_Jordan_solveEqual(pdEqualCoeff, affineParaNum, dAffinePara);
+    #else
+    solveEqual( pdEqualCoeff, affineParaNum, dAffinePara );
     #endif
 
     // convert to delta mv
@@ -9019,7 +9019,11 @@ srtartTime = clock();
 
     for (int j = 0; j < mvNum; j++)
     {
-      if ((!j && mvME[j] != mvPredTmp[j]) || (j && mvME[j] != (mvPredTmp[j] + dMv)))
+      #if flgBMA
+      if (0)
+      #else
+          if ((!j && mvME[j] != mvPredTmp[j]) || (j && mvME[j] != (mvPredTmp[j] + dMv)))
+      #endif
       {
         ::memcpy(acMvTemp, mvME, sizeof(Mv) * 3);
         acMvTemp[j] = mvPredTmp[j];
@@ -9090,8 +9094,13 @@ srtartTime = clock();
             break;
           }
           Mv centerMv[3];
+          #if flgBMA
+          memcpy(centerMv, acMvTemp, sizeof(Mv) * 3);
+          if (false)
+          #else
           memcpy(centerMv, acMv, sizeof(Mv) * 3);
           memcpy(acMvTemp, acMv, sizeof(Mv) * 3);
+          #endif
 
           for (int i = ((iter == 0) ? 0 : 4); i < ((iter == 0) ? 4 : 8); i++)
           {
