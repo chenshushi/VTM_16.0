@@ -53,7 +53,9 @@
 #include <math.h>
 #include <limits>
 
-
+#define OF_FME_FLG 0
+#define OF_BME_FLG 0
+#define BME_ON     1
  //! \ingroup EncoderLib
  //! \{
 
@@ -3359,7 +3361,11 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           }
 
           enforceBcwPred = (bcwIdx != BCW_DEFAULT);
+          #if BME_ON
           for (int iter = 0; iter < numIter; iter++)
+          #else
+          for (int iter = 0; iter < 0; iter++)
+          #endif
           {
             int refList = iter % 2;
 
@@ -3464,11 +3470,13 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
               }
               // call ME
               xCopyAMVPInfo(&aacAMVPInfo[refList][refIdxTemp], &amvp[eRefPicList]);
-              int refList_another = (refList ? 0 : 1);
-              int refIdx_another = refIdx[refList_another];
+
 #if GDR_ENABLED
               bCleanCandExist = false;
               // if ( pu.cu->imv == 0 || pu.cu->imv == IMV_HPEL ){
+              #if OF_BME_FLG
+              int refList_another = (refList ? 0 : 1);
+              int refIdx_another = refIdx[refList_another];
               if ( pu.cu->imv == 0 ){
                 xMotionEstimation(pu, origBuf, eRefPicList, cMvPredBi[refList][refIdxTemp], refIdxTemp,
                                   cMvTemp[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
@@ -3484,6 +3492,12 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
                               aaiMvpIdxBi[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList],
                               bCleanCandExist, true);
               }
+              #else
+                              xMotionEstimation(pu, origBuf, eRefPicList, cMvPredBi[refList][refIdxTemp], refIdxTemp,
+                              cMvTemp[refList][refIdxTemp], cMvInter[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
+                              aaiMvpIdxBi[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList],
+                              bCleanCandExist, true);
+              #endif
               // printf("eRefPicList==%d  BME init MV:  [L_cur] idx: %d (%d,%d) [L_another] idx: %d (%d,%d)\n", eRefPicList, refIdxTemp,cMvTemp[refList][refIdxTemp].getHor (),cMvTemp[refList][refIdxTemp].getVer (), refIdx_another,cMvTemp[refList_another][refIdx_another].getHor (), cMvTemp[refList_another][refIdx_another].getVer ());
 
 #else
@@ -7303,6 +7317,7 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
   //  2)
   //  //                                                                            + (rcMvHalf.ver << 1) +
   //  rcMvQter.ver);
+  #if OF_FME_FLG
   Mv test = rcMvInt;
   test.changePrecision(MV_PRECISION_INT, MV_PRECISION_QUARTER);
   Mv Ori_FMV = rcMvInt;
@@ -7312,6 +7327,7 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
   //  Mv test = best_P_InitMv;
   //  test.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
   xOpticalFlow_for_P(pu, &cPatternRoi, cStruct, test, rcMvQter, bBi);
+  #endif
   // printf("optical %d  %d  %d  %d \n",Ori_FMV.hor, Ori_FMV.ver, rcMvQter.hor, rcMvQter.ver);
   //  // printf("DF : Ini :  (%03d, %03d)  Dlt : (%03d, %03d)  MV : (%03d, %03d)\n", best_P_InitMv.hor,
   //  best_P_InitMv.ver,

@@ -79,39 +79,39 @@ LIST_SEQ_AVAILABLE=(
 )
 LIST_SEQ=(
     # # D
-    # "BasketballPass"        8     50      416     240     8
-    # "BlowingBubbles"        8     50      416     240     8
-    # "BQSquare"              8     60      416     240     8
-    # "RaceHorses"            8     30      416     240     8
+    "BasketballPass"        33     50      416     240     8
+    # "BlowingBubbles"        33     50      416     240     8
+    # "BQSquare"              33     60      416     240     8
+    # "RaceHorses"            33     30      416     240     8
     # # C
-    # "BasketballDrill"       8      50      832     480     8
-    # "BQMall"                8      60      832     480     8
-    # "PartyScene"            8      50      832     480     8
-    # "RaceHorsesC"           8      30      832     480     8
+    # "BasketballDrill"       33      50      832     480     8
+    # "BQMall"                33      60      832     480     8
+    # "PartyScene"            33      50      832     480     8
+    # "RaceHorsesC"           33      30      832     480     8
     # # E
-    # "FourPeople"            8     60      1280    720     8
-    # "Johnny"                8     60      1280    720     8
-    # "KristenAndSara"        8     60      1280    720     8
+    # "FourPeople"            33     60      1280    720     8
+    # "Johnny"                33     60      1280    720     8
+    # "KristenAndSara"        33     60      1280    720     8
     
     # # screen content
-    # "ArenaOfValor"          8     60      1920    1080    8
-    # "SlideEditing"          8     30      1280    720     8
-    # "SlideShow"             8     20      1280    720     8
-    # "BasketballDrillText"   8     50      832     480     8
+    # "ArenaOfValor"          33     60      1920    1080    8
+    # "SlideEditing"          33     30      1280    720     8
+    # "SlideShow"             33     20      1280    720     8
+    # "BasketballDrillText"   33     50      832     480     8
     # # B
-    # "MarketPlace"           8      60      1920    1080    10
-    # "BasketballDrive"       8      50      1920    1080    8
-    # "BQTerrace"             8      60      1920    1080    8
-    # "Cactus"                8      50      1920    1080    8
-    # "RitualDance"           8      60      1920    1080    10 
+    # "MarketPlace"           33      60      1920    1080    10
+    # "BasketballDrive"       33      50      1920    1080    8
+    # "BQTerrace"             33      60      1920    1080    8
+    # "Cactus"                33      50      1920    1080    8
+    # "RitualDance"           33      60      1920    1080    10 
     # # A1
-    # "FoodMarket4"           8     60      3840    2160    10
-    # "Tango2"                8     60      3840    2160    10
-    "Campfire"              8     30      3840    2160    10
+    # "FoodMarket4"           33     60      3840    2160    10
+    # "Tango2"                33     60      3840    2160    10
+    # "Campfire"              33     30      3840    2160    10
     # A2
-    "ParkRunning3"          8     50      3840    2160    10
-    "CatRobot"              8     60      3840    2160    10
-    "DaylightRoad2"         8     60      3840    2160    10
+    # "ParkRunning3"          33     50      3840    2160    10
+    # "CatRobot"              33     60      3840    2160    10
+    # "DaylightRoad2"         33     60      3840    2160    10
 )
 
 # encoder
