@@ -8257,6 +8257,7 @@ void Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dAffin
 void Fix_Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dAffinePara)
 {
   #if flgFixPoint
+  float dEqualCoeff_float[7][7];
   for (int k = 0; k < order; k++)
   {
     dAffinePara[k] = 0.;
@@ -8264,7 +8265,7 @@ void Fix_Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dA
   // Float_To_Fixed
   for (int i = 0; i < order + 1; i++) {
     for (int j = 0; j < order +1; j++) {
-      dEqualCoeff[i][j] = Float_To_Fixed(dEqualCoeff[i][j]);
+      dEqualCoeff_float[i][j] = (float) dEqualCoeff[i][j];
     }
   }
   // intitial parameter
@@ -8273,13 +8274,13 @@ void Fix_Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dA
   for (int i = 1; i < order + 1; i++)
   {
     // find column max
-    double temp = fabs(dEqualCoeff[i][i-1]);
+    float temp = fabs(dEqualCoeff_float[i][i-1]);
     int tempIdx = i;
     for (int m = i + 1; m < order + 1; m++)
     {
-      if ( fabs(dEqualCoeff[m][i-1]) > temp )
+      if ( fabs(dEqualCoeff_float[m][i-1]) > temp )
       {
-        temp = fabs(dEqualCoeff[m][i-1]);
+        temp = fabs(dEqualCoeff_float[m][i-1]);
         tempIdx = m;
       }
     }
@@ -8289,32 +8290,32 @@ void Fix_Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dA
     {
       for (int j = 0; j < order + 1; j++)
       {
-        dEqualCoeff[0][j] = dEqualCoeff[i][j];
-        dEqualCoeff[i][j] = dEqualCoeff[tempIdx][j];
-        dEqualCoeff[tempIdx][j] = dEqualCoeff[0][j];
+        dEqualCoeff_float[0][j] = dEqualCoeff_float[i][j];
+        dEqualCoeff_float[i][j] = dEqualCoeff_float[tempIdx][j];
+        dEqualCoeff_float[tempIdx][j] = dEqualCoeff_float[0][j];
       }
     }
 
     // elimination first column
-    if ( dEqualCoeff[i][i - 1] == 0. )
+    if ( dEqualCoeff_float[i][i - 1] == 0. )
     {
       return;
     }
     // 
-    double first_element;
-    first_element = dEqualCoeff[i][i-1];
+    float first_element;
+    first_element = dEqualCoeff_float[i][i-1];
     for (int j = i-1; j < order + 1; j++)
       {
-        dEqualCoeff[i][j] = Float_To_Fixed(dEqualCoeff[i][j] / first_element);
+        dEqualCoeff_float[i][j] = (dEqualCoeff_float[i][j] / first_element);
       }
  
     for (int m = 1; m < order + 1; m++)
     {
       if(m != i) {
-        first_element = dEqualCoeff[m][i-1];
+        first_element = dEqualCoeff_float[m][i-1];
         for (int j = i-1; j < order + 1; j++)
         {
-          dEqualCoeff[m][j] = Float_To_Fixed(dEqualCoeff[m][j] - Float_To_Fixed(first_element * dEqualCoeff[i][j]));
+          dEqualCoeff_float[m][j] = (dEqualCoeff_float[m][j] - (first_element * dEqualCoeff_float[i][j]));
         }
       }
     }
@@ -8322,7 +8323,7 @@ void Fix_Gauss_Jordan_solveEqual(double dEqualCoeff[7][7], int order, double *dA
 
   for (int i = 0; i < order; i++)
   {
-    dAffinePara[i] = dEqualCoeff[i + 1][order];
+    dAffinePara[i] = (double) dEqualCoeff_float[i + 1][order];
   }
   #else
     for (int k = 0; k < order; k++)
@@ -8530,7 +8531,7 @@ srtartTime = clock();
   int bestMvpIdx   = mvpIdx;
   const int width  = pu.Y().width;
   const int height = pu.Y().height;
-
+  // printf("Siz (%03d,%03d) \n",width,height);
   const Picture *refPic = pu.cu->slice->getRefPic(eRefPicList, refIdxPred);
 
   // Set Origin YUV: pcYuv
@@ -8538,7 +8539,11 @@ srtartTime = clock();
   double        fWeight       = 1.0;
 
   PelUnitBuf  origBufTmp = m_tmpStorageLCU.getBuf( UnitAreaRelative( *pu.cu, pu ) );
+  #if flgHAD4
+  enum DFunc distFunc = (pu.cs->slice->getDisableSATDForRD()) ? DF_SAD : DF_HAD4;
+  # else
   enum DFunc distFunc = (pu.cs->slice->getDisableSATDForRD()) ? DF_SAD : DF_HAD;
+  #endif
   m_iRefListIdx = eRefPicList;
 
   // if Bi, set to ( 2 * Org - ListX )
@@ -8930,6 +8935,9 @@ srtartTime = clock();
 #endif
       uiBitsBest = bitsTemp;
       iter_best_num = iter;
+      // printf("AMVD (%d,%d)  (%d,%d)  (%d,%d) \n",acMv[0].hor - acMvTemp[0].hor,  acMv[0].ver - acMvTemp[0].ver,
+      //                                            acMv[1].hor - acMvTemp[1].hor,  acMv[1].ver - acMvTemp[1].ver,
+      //                                            acMv[2].hor - acMvTemp[2].hor,  acMv[2].ver - acMvTemp[2].ver  );
       memcpy( acMv, acMvTemp, sizeof(Mv) * 3 );
       mvpIdx = bestMvpIdx;
     }
@@ -9055,7 +9063,7 @@ srtartTime = clock();
 
     //keep the translation;
     #if flgBMA
-    if (false)
+    if (true)
     #else
     if (pu.cu->affineType == AFFINEMODEL_6PARAM && mvME[1] != (mvPredTmp[1] + dMv) && mvME[2] != (mvPredTmp[2] + dMv))
     #endif
@@ -9077,7 +9085,7 @@ srtartTime = clock();
       bool modelChange = false;
       //search the model parameters with finear granularity;
       #if flgBMA
-      for (int j = 0; j < 1; j++)
+      for (int j = 2; j < 3; j++)
       #else
       for (int j = 0; j < mvNum; j++)
       #endif
@@ -9096,7 +9104,6 @@ srtartTime = clock();
           Mv centerMv[3];
           #if flgBMA
           memcpy(centerMv, acMvTemp, sizeof(Mv) * 3);
-          if (false)
           #else
           memcpy(centerMv, acMv, sizeof(Mv) * 3);
           memcpy(acMvTemp, acMv, sizeof(Mv) * 3);

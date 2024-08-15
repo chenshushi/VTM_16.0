@@ -55,24 +55,29 @@
 #define Res_3sigma              0
 //--M1 : Weight--------------
 #define Sobel_141               0
-#define flgAffWeight            0
+#define flgAffWeight            1
 #define Aff_Weight_Laplace_sub  0
-//--M2 : Iter & BMA-----------
+//--M2 : Iter -----------
 #define flgIter                 0
+//--M3 : BMA-----------
 #define flgBMA                  0
-//--M3 : GaussJordan---------
+//--Mx : GaussJordan---------
 #define flgGaussJordan          0
-//--M4 : FixPoint------------
+//--Mx : FixPoint------------
 #define flgFixPoint             0
-//--M5 : HAD4 ---------------
+//--M4 : HAD4 ---------------
 #define flgHAD4                 0
-//--M6 : clip MV-------------
-#define flgClipMV               1
-#define clipMvB2                1
+//--M5 : clip MV-------------
+#define flgClipMV               0
+#define clipMvB2                0
 #define clipMvB4                0
 #define clipMvB8                0
 #define clipMvB16               0
+//---M6 : remove point ------
+#define flgRemove               0
 //---------------------------
+
+#define CDC_FUNC_CLP(datMin, datMax, dat)    (((dat) < (datMin)) ? (datMin) : (((dat) > (datMax)) ? (datMax) : (dat)))
 
 #if _MSC_VER > 1000
 // disable "signed and unsigned mismatch"
