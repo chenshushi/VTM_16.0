@@ -7305,9 +7305,14 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
   //  rcMvQter.ver);
   Mv test = rcMvInt;
   test.changePrecision(MV_PRECISION_INT, MV_PRECISION_QUARTER);
+  Mv Ori_FMV = rcMvInt;
+  Ori_FMV <<= 2;
+  Ori_FMV += ( rcMvHalf <<= 1 );
+  Ori_FMV += rcMvQter;
   //  Mv test = best_P_InitMv;
   //  test.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
   xOpticalFlow_for_P(pu, &cPatternRoi, cStruct, test, rcMvQter, bBi);
+  // printf("optical %d  %d  %d  %d \n",Ori_FMV.hor, Ori_FMV.ver, rcMvQter.hor, rcMvQter.ver);
   //  // printf("DF : Ini :  (%03d, %03d)  Dlt : (%03d, %03d)  MV : (%03d, %03d)\n", best_P_InitMv.hor,
   //  best_P_InitMv.ver,
   //  //                                                                            rcMvQter.hor - best_P_InitMv.hor,
