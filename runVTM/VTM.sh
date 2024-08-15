@@ -28,8 +28,10 @@
 
 #*** PARAMETER *****************************************************************
 # directory or file name
-CSTR_CDC=VTM
-CSTR_DIR_SRC="/home/share/VVC_CTC"    #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT   E:\DOWNLOAD\SEQUENCE\HM
+CSTR_CDC=$1
+CSTR_DIR_SRC="/home/share/VVC"              # VIP_95
+# CSTR_DIR_SRC="/home/share/VVC_CTC"          # VIP_96
+# CSTR_DIR_SRC="/mnt/DOWNLOAD/SEQUENCE/HM"    # VIP_LAB
 CSTR_DIR_DST="dump"                                       #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_LOG_RUN="$CSTR_DIR_DST/runs.log"                     #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
 CSTR_LOG_JOB="$CSTR_DIR_DST/jobs.log"                     #REVERT_THIS_ITEM_BEFORE_YOU_COMMIT
@@ -77,39 +79,39 @@ LIST_SEQ_AVAILABLE=(
 )
 LIST_SEQ=(
     # # D
-    "BasketballPass"        65     50      416     240     8
-    # "BlowingBubbles"        65     50      416     240     8
-    # "BQSquare"              65     60      416     240     8
-    # "RaceHorses"            65     30      416     240     8
+    # "BasketballPass"        8     50      416     240     8
+    # "BlowingBubbles"        8     50      416     240     8
+    # "BQSquare"              8     60      416     240     8
+    # "RaceHorses"            8     30      416     240     8
     # # C
-    # "BasketballDrill"       300      50      832     480     8
-    # "BQMall"                300      60      832     480     8
-    # "PartyScene"            300      50      832     480     8
-    # "RaceHorsesC"           300      30      832     480     8
+    # "BasketballDrill"       8      50      832     480     8
+    # "BQMall"                8      60      832     480     8
+    # "PartyScene"            8      50      832     480     8
+    # "RaceHorsesC"           8      30      832     480     8
     # # E
-    # "FourPeople"            300     60      1280    720     8
-    # "Johnny"                300     60      1280    720     8
-    # "KristenAndSara"        300     60      1280    720     8
+    # "FourPeople"            8     60      1280    720     8
+    # "Johnny"                8     60      1280    720     8
+    # "KristenAndSara"        8     60      1280    720     8
     
     # # screen content
-    # "ArenaOfValor"          300     60      1920    1080    8
-    # "SlideEditing"          300     30      1280    720     8
-    # "SlideShow"             300     20      1280    720     8
-    # "BasketballDrillText"   300     50      832     480     8
+    # "ArenaOfValor"          8     60      1920    1080    8
+    # "SlideEditing"          8     30      1280    720     8
+    # "SlideShow"             8     20      1280    720     8
+    # "BasketballDrillText"   8     50      832     480     8
     # # B
-    # "MarketPlace"           300      60      1920    1080    10
-    # "BasketballDrive"       300      50      1920    1080    8
-    # "BQTerrace"             300      60      1920    1080    8
-    # "Cactus"                300      50      1920    1080    8
-    # "RitualDance"           65      60      1920    1080    10
+    # "MarketPlace"           8      60      1920    1080    10
+    # "BasketballDrive"       8      50      1920    1080    8
+    # "BQTerrace"             8      60      1920    1080    8
+    # "Cactus"                8      50      1920    1080    8
+    # "RitualDance"           8      60      1920    1080    10 
     # # A1
-    # "FoodMarket4"           300     60      3840    2160    10
-    # "Tango2"                300     60      3840    2160    10
-    # "Campfire"              300     30      3840    2160    10
-    # # A2
-    # "ParkRunning3"          300     50      3840    2160    10
-    # "CatRobot"              300     60      3840    2160    10
-    # "DaylightRoad2"         300     60      3840    2160    10
+    # "FoodMarket4"           8     60      3840    2160    10
+    # "Tango2"                8     60      3840    2160    10
+    "Campfire"              8     30      3840    2160    10
+    # A2
+    "ParkRunning3"          8     50      3840    2160    10
+    "CatRobot"              8     60      3840    2160    10
+    "DaylightRoad2"         8     60      3840    2160    10
 )
 
 # encoder
@@ -183,13 +185,12 @@ do
         # fi
         # log
         echo "    qp $DATA_Q_P launched ..."
-        echo " ===== $DATA_PRD_INTRA ===="
+        # echo " ===== $DATA_PRD_INTRA ===="
         # make directory
         mkdir -p $CSTR_DIR_DST_FUL
 
         # encode (gop, common)
         ./${CSTR_CDC}                                                 \
-                                                                      \
             -c                  cfg/encoder_randomaccess_vtm.cfg      \
                     --InputFile=${CSTR_SRC}/${CSTR_SRC_YUV}           \
             --FramesToBeEncoded=${NUMB_FRA}                           \
