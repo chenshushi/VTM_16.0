@@ -506,9 +506,15 @@ protected:
   // -------------------------------------------------------------------------------------------------------------------
 
 #if GDR_ENABLED
+  // ori ME
+  void xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred, int refIdxPred,
+                         Mv &rcMv, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits, Distortion &ruiCost,
+                         const AMVPInfo &amvpInfo, bool &rbCleanCandExist, bool bBi = false);
+  // P ME
   void xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred, int refIdxPred,
                          Mv &rcMv, Mv &IMV, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits, Distortion &ruiCost,
                          const AMVPInfo &amvpInfo, bool &rbCleanCandExist, bool bBi = false);
+  // BME
   void xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred, int refIdxPred,
                          Mv &rcMv, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits, Distortion &ruiCost,
                          const AMVPInfo &amvpInfo, bool &rbCleanCandExist, bool bBi, Mv L0_InitMv, Mv L1_InitMv,
@@ -548,7 +554,15 @@ protected:
                                RefPicList eRefPicList, int refIdxPred, bool &rbCleanCandExist
 #endif
   );
-
+// ori FME
+  void xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx, IntTZSearchStruct &cStruct,
+                             const Mv &rcMvInt, Mv &rcMvHalf, Mv &rcMvQter, Distortion &ruiCost
+#if GDR_ENABLED
+                             ,
+                             bool &rbCleanCandExist
+#endif
+  );
+// P/B FME
   void xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx, IntTZSearchStruct &cStruct,
                              Mv &best_P_InitMv, const Mv &rcMvInt, Mv &rcMvHalf, Mv &rcMvQter, Distortion &ruiCost,
                              bool bBi

@@ -55,7 +55,7 @@
 
 #define OF_FME_FLG 0
 #define OF_BME_FLG 0
-#define BME_ON     1
+#define BME_ON     0
  //! \ingroup EncoderLib
  //! \{
 
@@ -3023,9 +3023,15 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
             {
 #if GDR_ENABLED
               bCleanCandExist = false;
+              #if OF_FME_FLG
               xMotionEstimation(pu, origBuf, eRefPicList, cMvPred[refList][refIdxTemp], refIdxTemp,
                                 cMvTemp[refList][refIdxTemp], cMvInter[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
                                 aaiMvpIdx[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList], bCleanCandExist);
+              #else
+              xMotionEstimation(pu, origBuf, eRefPicList, cMvPred[refList][refIdxTemp], refIdxTemp,
+                                cMvTemp[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
+                                aaiMvpIdx[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList], bCleanCandExist);    
+              #endif
 #else
               xMotionEstimation(pu, origBuf, eRefPicList, cMvPred[refList][refIdxTemp], refIdxTemp,
                                 cMvTemp[refList][refIdxTemp], aaiMvpIdx[refList][refIdxTemp], bitsTemp, costTemp,
@@ -3058,9 +3064,15 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
           {
 #if GDR_ENABLED
             bCleanCandExist = false;
+            #if OF_FME_FLG
             xMotionEstimation(pu, origBuf, eRefPicList, cMvPred[refList][refIdxTemp], refIdxTemp,
                               cMvTemp[refList][refIdxTemp], cMvInter[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
                               aaiMvpIdx[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList], bCleanCandExist);
+            #else
+            xMotionEstimation(pu, origBuf, eRefPicList, cMvPred[refList][refIdxTemp], refIdxTemp,
+                              cMvTemp[refList][refIdxTemp], cMvTempSolid[refList][refIdxTemp],
+                              aaiMvpIdx[refList][refIdxTemp], bitsTemp, costTemp, amvp[eRefPicList], bCleanCandExist);     
+            #endif
                               // printf("inter ME %d,%d\n",cMvTemp[refList][refIdxTemp].hor,cMvTemp[refList][refIdxTemp].ver);
 #else
             xMotionEstimation(pu, origBuf, eRefPicList, cMvPred[refList][refIdxTemp], refIdxTemp,
@@ -3441,11 +3453,13 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
             // printf("[refList] : %d iRefStart: %d  iRefEnd : %d\n",refList,iRefStart,iRefEnd);
             for (int refIdxTemp = iRefStart; refIdxTemp <= iRefEnd; refIdxTemp++)
             {
+              #if OF_BME_FLG
               pu.mv[refList]     = cMvTemp[refList][refIdxTemp];
               pu.refIdx[refList] = refIdxTemp;
               PelUnitBuf predBufCur = m_tmpPredStorage[refList].getBuf( UnitAreaRelative(cu, pu) );
               motionCompensation( pu, predBufCur, (refList == 1 ? REF_PIC_LIST_1 : REF_PIC_LIST_0) );
               // printf("MC2 MV: [L%d] (%d,%d)\n",refList, pu.mv[refList].getHor(),pu.mv[refList].getVer());
+              #endif
               if (m_pcEncCfg->getUseBcwFast() && (bcwIdx != BCW_DEFAULT)
                   && (pu.cu->slice->getRefPic(eRefPicList, refIdxTemp)->getPOC()
                       == pu.cu->slice->getRefPic(RefPicList(1 - refList), pu.refIdx[1 - refList])->getPOC())
@@ -4950,7 +4964,233 @@ Distortion InterSearch::xGetAffineTemplateCost(PredictionUnit &pu, PelUnitBuf &o
   DTRACE( g_trace_ctx, D_COMMON, " (%d) affineTemplateCost=%d\n", DTRACE_GET_COUNTER(g_trace_ctx,D_COMMON), uiCost );
   return uiCost;
 }
+// ori ME
+#if GDR_ENABLED
+void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred,
+                                    int refIdxPred, Mv &rcMv, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits,
+                                    Distortion &ruiCost, const AMVPInfo &amvpInfo, bool &rbCleanCandExist, bool bBi)
+#else
+void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred,
+                                    int refIdxPred, Mv &rcMv, int &riMVPIdx, uint32_t &ruiBits, Distortion &ruiCost,
+                                    const AMVPInfo &amvpInfo, bool bBi)
+#endif
+{
+#if GDR_ENABLED
+  if (pu.cu->cs->sps->getUseBcw() && pu.cu->BcwIdx != BCW_DEFAULT && !bBi
+      && xReadBufferedUniMv(pu, eRefPicList, refIdxPred, rcMvPred, rcMv, rcMvSolid, ruiBits, ruiCost))
+#else
+  if (pu.cu->cs->sps->getUseBcw() && pu.cu->BcwIdx != BCW_DEFAULT && !bBi
+      && xReadBufferedUniMv(pu, eRefPicList, refIdxPred, rcMvPred, rcMv, ruiBits, ruiCost))
+#endif
+  {
+    return;
+  }
 
+  Mv cMvHalf, cMvQter;
+
+  CHECK(eRefPicList >= MAX_NUM_REF_LIST_ADAPT_SR || refIdxPred >= int(MAX_IDX_ADAPT_SR),
+        "Invalid reference picture list");
+  m_iSearchRange = m_aaiAdaptSR[eRefPicList][refIdxPred];
+
+  int    iSrchRng   = (bBi ? m_bipredSearchRange : m_iSearchRange);
+  double fWeight    = 1.0;
+
+  PelUnitBuf  origBufTmp = m_tmpStorageLCU.getBuf( UnitAreaRelative(*pu.cu, pu) );
+  PelUnitBuf* pBuf       = &origBuf;
+
+  if(bBi) // Bi-predictive ME
+  {
+    // NOTE: Other buf contains predicted signal from another direction
+    PelUnitBuf otherBuf = m_tmpPredStorage[1 - (int)eRefPicList].getBuf( UnitAreaRelative(*pu.cu, pu ));
+    origBufTmp.copyFrom(origBuf);
+    origBufTmp.removeHighFreq( otherBuf, m_pcEncCfg->getClipForBiPredMeEnabled(), pu.cu->slice->clpRngs()
+                              ,getBcwWeight( pu.cu->BcwIdx, eRefPicList )
+                              );
+    pBuf = &origBufTmp;
+
+    fWeight = xGetMEDistortionWeight( pu.cu->BcwIdx, eRefPicList );
+  }
+  m_cDistParam.isBiPred = bBi;
+
+  //  Search key pattern initialization
+  CPelBuf  tmpPattern   = pBuf->Y();
+  CPelBuf* pcPatternKey = &tmpPattern;
+
+  m_lumaClpRng = pu.cs->slice->clpRng( COMPONENT_Y );
+
+  bool    wrap = pu.cu->slice->getRefPic(eRefPicList, refIdxPred)->isWrapAroundEnabled(pu.cs->pps);
+  CPelBuf buf  = pu.cu->slice->getRefPic(eRefPicList, refIdxPred)->getRecoBuf(pu.blocks[COMPONENT_Y], wrap);
+
+  IntTZSearchStruct cStruct;
+  cStruct.pcPatternKey  = pcPatternKey;
+  cStruct.iRefStride    = buf.stride;
+  cStruct.piRefY        = buf.buf;
+  cStruct.imvShift = pu.cu->imv == IMV_HPEL ? 1 : (pu.cu->imv << 1);
+  cStruct.useAltHpelIf = pu.cu->imv == IMV_HPEL;
+  cStruct.inCtuSearch = false;
+  cStruct.zeroMV = false;
+  {
+    if (m_useCompositeRef && pu.cs->slice->getRefPic(eRefPicList, refIdxPred)->longTerm)
+    {
+      cStruct.inCtuSearch = true;
+    }
+  }
+
+  auto blkCache = dynamic_cast<CacheBlkInfoCtrl*>( m_modeCtrl );
+
+  bool bQTBTMV  = false;
+  bool bQTBTMV2 = false;
+  Mv cIntMv;
+  if( !bBi )
+  {
+    bool bValid = blkCache && blkCache->getMv(pu, eRefPicList, refIdxPred, cIntMv);
+    if( bValid )
+    {
+      bQTBTMV2 = true;
+      cIntMv.changePrecision( MV_PRECISION_INT, MV_PRECISION_INTERNAL);
+    }
+  }
+
+  Mv predQuarter = rcMvPred;
+  predQuarter.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_QUARTER);
+  m_pcRdCost->setPredictor( predQuarter );
+
+  m_pcRdCost->setCostScale(2);
+
+  {
+    setWpScalingDistParam(refIdxPred, eRefPicList, pu.cu->slice);
+  }
+  m_currRefPicList = eRefPicList;
+  m_currRefPicIndex = refIdxPred;
+  m_skipFracME = false;
+  //  Do integer search
+  if( ( m_motionEstimationSearchMethod == MESEARCH_FULL ) || bBi || bQTBTMV )
+  {
+    cStruct.subShiftMode = m_pcEncCfg->getFastInterSearchMode() == FASTINTERSEARCH_MODE1 || m_pcEncCfg->getFastInterSearchMode() == FASTINTERSEARCH_MODE3 ? 2 : 0;
+    m_pcRdCost->setDistParam(m_cDistParam, *cStruct.pcPatternKey, cStruct.piRefY, cStruct.iRefStride, m_lumaClpRng.bd, COMPONENT_Y, cStruct.subShiftMode);
+
+    Mv bestInitMv = (bBi ? rcMv : rcMvPred);
+    Mv cTmpMv = bestInitMv;
+
+    clipMv( cTmpMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps );
+    cTmpMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_INT);
+    m_cDistParam.cur.buf = cStruct.piRefY + (cTmpMv.ver * cStruct.iRefStride) + cTmpMv.hor;
+    Distortion uiBestSad = m_cDistParam.distFunc(m_cDistParam);
+    uiBestSad += m_pcRdCost->getCostOfVectorWithPredictor(cTmpMv.hor, cTmpMv.ver, cStruct.imvShift);
+
+    for (int i = 0; i < m_uniMvListSize; i++)
+    {
+      BlkUniMvInfo* curMvInfo = m_uniMvList + ((m_uniMvListIdx - 1 - i + m_uniMvListMaxSize) % (m_uniMvListMaxSize));
+
+      int j = 0;
+      for (; j < i; j++)
+      {
+        BlkUniMvInfo *prevMvInfo = m_uniMvList + ((m_uniMvListIdx - 1 - j + m_uniMvListMaxSize) % (m_uniMvListMaxSize));
+        if (curMvInfo->uniMvs[eRefPicList][refIdxPred] == prevMvInfo->uniMvs[eRefPicList][refIdxPred])
+        {
+          break;
+        }
+      }
+      if (j < i)
+      {
+        continue;
+      }
+
+      cTmpMv = curMvInfo->uniMvs[eRefPicList][refIdxPred];
+      clipMv( cTmpMv, pu.cu->lumaPos(), pu.cu->lumaSize(), *pu.cs->sps, *pu.cs->pps );
+      cTmpMv.changePrecision(MV_PRECISION_INTERNAL, MV_PRECISION_INT);
+      m_cDistParam.cur.buf = cStruct.piRefY + (cTmpMv.ver * cStruct.iRefStride) + cTmpMv.hor;
+
+      Distortion uiSad = m_cDistParam.distFunc(m_cDistParam);
+      uiSad += m_pcRdCost->getCostOfVectorWithPredictor(cTmpMv.hor, cTmpMv.ver, cStruct.imvShift);
+      if (uiSad < uiBestSad)
+      {
+        uiBestSad = uiSad;
+        bestInitMv                                 = curMvInfo->uniMvs[eRefPicList][refIdxPred];
+        m_cDistParam.maximumDistortionForEarlyExit = uiSad;
+      }
+    }
+
+    if( !bQTBTMV )
+    {
+#if GDR_ENABLED
+      xSetSearchRange(pu, bestInitMv, iSrchRng, cStruct.searchRange, cStruct, eRefPicList, refIdxPred);
+#else
+      xSetSearchRange(pu, bestInitMv, iSrchRng, cStruct.searchRange, cStruct);
+#endif
+    }
+    xPatternSearch( cStruct, rcMv, ruiCost);
+  }
+  else if( bQTBTMV2 )
+  {
+    rcMv = cIntMv;
+
+    cStruct.subShiftMode = ( !m_pcEncCfg->getRestrictMESampling() && m_pcEncCfg->getMotionEstimationSearchMethod() == MESEARCH_SELECTIVE ) ? 1 :
+                            ( m_pcEncCfg->getFastInterSearchMode() == FASTINTERSEARCH_MODE1 || m_pcEncCfg->getFastInterSearchMode() == FASTINTERSEARCH_MODE3 ) ? 2 : 0;
+    xTZSearch(pu, eRefPicList, refIdxPred, cStruct, rcMv, ruiCost, NULL, false, true);
+  }
+  else
+  {
+    cStruct.subShiftMode = ( !m_pcEncCfg->getRestrictMESampling() && m_pcEncCfg->getMotionEstimationSearchMethod() == MESEARCH_SELECTIVE ) ? 1 :
+                            ( m_pcEncCfg->getFastInterSearchMode() == FASTINTERSEARCH_MODE1 || m_pcEncCfg->getFastInterSearchMode() == FASTINTERSEARCH_MODE3 ) ? 2 : 0;
+    rcMv = rcMvPred;
+    const Mv *pIntegerMv2Nx2NPred = 0;
+    xPatternSearchFast(pu, eRefPicList, refIdxPred, cStruct, rcMv, ruiCost, pIntegerMv2Nx2NPred);
+    if( blkCache )
+    {
+      blkCache->setMv(pu.cs->area, eRefPicList, refIdxPred, rcMv);
+    }
+    else
+    {
+      m_integerMv2Nx2N[eRefPicList][refIdxPred] = rcMv;
+    }
+  }
+
+  DTRACE( g_trace_ctx, D_ME, "%d %d %d :MECostFPel<L%d,%d>: %d,%d,%dx%d, %d", DTRACE_GET_COUNTER( g_trace_ctx, D_ME ), pu.cu->slice->getPOC(), 0, ( int ) eRefPicList, ( int ) bBi, pu.Y().x, pu.Y().y, pu.Y().width, pu.Y().height, ruiCost );
+  // sub-pel refinement for sub-pel resolution
+  if ( pu.cu->imv == 0 || pu.cu->imv == IMV_HPEL )
+  {
+    if( m_pcEncCfg->getMCTSEncConstraint() )
+    {
+      Area curTileAreaSubPelRestricted = pu.cs->picture->mctsInfo.getTileAreaSubPelRestricted( pu );
+      // Area adjustment, because subpel refinement is going to (x-1;y-1) direction
+      curTileAreaSubPelRestricted.x += 1;
+      curTileAreaSubPelRestricted.y += 1;
+      curTileAreaSubPelRestricted.width -= 1;
+      curTileAreaSubPelRestricted.height -= 1;
+      if( ! MCTSHelper::checkMvIsNotInRestrictedArea( pu, rcMv, curTileAreaSubPelRestricted, MV_PRECISION_INT ) )
+      {
+        MCTSHelper::clipMvToArea( rcMv, pu.Y(), curTileAreaSubPelRestricted, *pu.cs->sps, 0 );
+      }
+    }
+#if GDR_ENABLED
+    xPatternSearchFracDIF(pu, eRefPicList, refIdxPred, cStruct, rcMv, cMvHalf, cMvQter, ruiCost, rbCleanCandExist);
+#else
+    xPatternSearchFracDIF(pu, eRefPicList, refIdxPred, cStruct, rcMv, cMvHalf, cMvQter, ruiCost);
+#endif
+    m_pcRdCost->setCostScale( 0 );
+    rcMv <<= 2;
+    rcMv  += ( cMvHalf <<= 1 );
+    rcMv  += cMvQter;
+    uint32_t uiMvBits = m_pcRdCost->getBitsOfVectorWithPredictor( rcMv.getHor(), rcMv.getVer(), cStruct.imvShift );
+    ruiBits += uiMvBits;
+    ruiCost = ( Distortion ) ( floor( fWeight * ( ( double ) ruiCost - ( double ) m_pcRdCost->getCost( uiMvBits ) ) ) + ( double ) m_pcRdCost->getCost( ruiBits ) );
+    rcMv.changePrecision(MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL);
+  }
+  else // integer refinement for integer-pel and 4-pel resolution
+  {
+    rcMv.changePrecision(MV_PRECISION_INT, MV_PRECISION_INTERNAL);
+#if GDR_ENABLED
+    xPatternSearchIntRefine(pu, cStruct, rcMv, rcMvPred, riMVPIdx, ruiBits, ruiCost, amvpInfo, fWeight, eRefPicList,
+                            refIdxPred, rbCleanCandExist);
+#else
+    xPatternSearchIntRefine( pu, cStruct, rcMv, rcMvPred, riMVPIdx, ruiBits, ruiCost, amvpInfo, fWeight);
+#endif
+  }
+  DTRACE(g_trace_ctx, D_ME, "   MECost<L%d,%d>: %6d (%d)  MV:%d,%d\n", (int)eRefPicList, (int)bBi, ruiCost, ruiBits, rcMv.getHor() << 2, rcMv.getVer() << 2);
+}
+
+// P ME
 #if GDR_ENABLED
 void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred,
                                     int refIdxPred, Mv &rcMv, Mv &IMV, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits,
@@ -5158,10 +5398,15 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
     xPatternSearchFracDIF(pu, eRefPicList, refIdxPred, cStruct, rcMv, cMvHalf, cMvQter, ruiCost);
 #endif
     m_pcRdCost->setCostScale( 0 );
+    #if OF_FME_FLG
     // rcMv <<= 2;
     // rcMv  += ( cMvHalf <<= 1 );
     rcMv  = cMvQter;
-    
+    #else
+    rcMv <<= 2;
+    rcMv  += ( cMvHalf <<= 1 );
+    rcMv  += cMvQter;
+    #endif
     uint32_t uiMvBits = m_pcRdCost->getBitsOfVectorWithPredictor( rcMv.getHor(), rcMv.getVer(), cStruct.imvShift );
     ruiBits += uiMvBits;
     ruiCost = ( Distortion ) ( floor( fWeight * ( ( double ) ruiCost - ( double ) m_pcRdCost->getCost( uiMvBits ) ) ) + ( double ) m_pcRdCost->getCost( ruiBits ) );
@@ -5179,6 +5424,7 @@ void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, Ref
   }
   DTRACE(g_trace_ctx, D_ME, "   MECost<L%d,%d>: %6d (%d)  MV:%d,%d\n", (int)eRefPicList, (int)bBi, ruiCost, ruiBits, rcMv.getHor() << 2, rcMv.getVer() << 2);
 }
+// B ME
 #if GDR_ENABLED
 void InterSearch::xMotionEstimation(PredictionUnit &pu, PelUnitBuf &origBuf, RefPicList eRefPicList, Mv &rcMvPred,
                                     int refIdxPred, Mv &rcMv, bool &rcMvSolid, int &riMVPIdx, uint32_t &ruiBits,
@@ -7231,7 +7477,81 @@ Distortion InterSearch::xOpticalFlow_for_P(const PredictionUnit &pu, CPelBuf *cP
   }
   return ReturnCost;
 }
+// ori FME
+void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
+                                        IntTZSearchStruct &cStruct, const Mv &rcMvInt, Mv &rcMvHalf, Mv &rcMvQter,
+                                        Distortion &ruiCost
+#if GDR_ENABLED
+                                        ,
+                                        bool &rbCleanCandExist
+#endif
+)
+{
 
+  //  Reference pattern initialization (integer scale)
+  int     offset = rcMvInt.getHor() + rcMvInt.getVer() * cStruct.iRefStride;
+  CPelBuf cPatternRoi(cStruct.piRefY + offset, cStruct.iRefStride, *cStruct.pcPatternKey);
+  if (m_skipFracME)
+  {
+    Mv baseRefMv(0, 0);
+    rcMvHalf.setZero();
+    m_pcRdCost->setCostScale(0);
+    xExtDIFUpSamplingH(&cPatternRoi, cStruct.useAltHpelIf);
+    rcMvQter = rcMvInt;   rcMvQter <<= 2;    // for mv-cost
+#if GDR_ENABLED
+    ruiCost = xPatternRefinement(pu, eRefPicList, refIdx, cStruct.pcPatternKey, baseRefMv, 1, rcMvQter,
+                                 !pu.cs->slice->getDisableSATDForRD(), rbCleanCandExist);
+#else
+    ruiCost = xPatternRefinement(cStruct.pcPatternKey, baseRefMv, 1, rcMvQter, !pu.cs->slice->getDisableSATDForRD());
+#endif
+    return;
+  }
+
+
+  if (cStruct.imvShift > IMV_FPEL || (m_useCompositeRef && cStruct.zeroMV))
+  {
+    m_pcRdCost->setDistParam(m_cDistParam, *cStruct.pcPatternKey, cStruct.piRefY + offset, cStruct.iRefStride,
+                             m_lumaClpRng.bd, COMPONENT_Y, 0, 1,
+                             m_pcEncCfg->getUseHADME() && !pu.cs->slice->getDisableSATDForRD());
+    ruiCost = m_cDistParam.distFunc( m_cDistParam );
+    ruiCost += m_pcRdCost->getCostOfVectorWithPredictor( rcMvInt.getHor(), rcMvInt.getVer(), cStruct.imvShift );
+    return;
+  }
+
+  //  Half-pel refinement
+  m_pcRdCost->setCostScale(1);
+  xExtDIFUpSamplingH(&cPatternRoi, cStruct.useAltHpelIf);
+
+  rcMvHalf = rcMvInt;   rcMvHalf <<= 1;    // for mv-cost
+  Mv baseRefMv(0, 0);
+#if GDR_ENABLED
+  ruiCost = xPatternRefinement(pu, eRefPicList, refIdx, cStruct.pcPatternKey, baseRefMv, 2, rcMvHalf,
+                               (!pu.cs->slice->getDisableSATDForRD()), rbCleanCandExist);
+#else
+  ruiCost = xPatternRefinement(cStruct.pcPatternKey, baseRefMv, 2, rcMvHalf, (!pu.cs->slice->getDisableSATDForRD()));
+#endif
+
+  //  quarter-pel refinement
+  if (cStruct.imvShift == IMV_OFF)
+  {
+    m_pcRdCost->setCostScale(0);
+    xExtDIFUpSamplingQ(&cPatternRoi, rcMvHalf);
+    baseRefMv = rcMvHalf;
+    baseRefMv <<= 1;
+
+    rcMvQter = rcMvInt;
+    rcMvQter <<= 1;   // for mv-cost
+    rcMvQter += rcMvHalf;
+    rcMvQter <<= 1;
+#if GDR_ENABLED
+    ruiCost = xPatternRefinement(pu, eRefPicList, refIdx, cStruct.pcPatternKey, baseRefMv, 1, rcMvQter,
+                                 (!pu.cs->slice->getDisableSATDForRD()), rbCleanCandExist);
+#else
+    ruiCost = xPatternRefinement(cStruct.pcPatternKey, baseRefMv, 1, rcMvQter, (!pu.cs->slice->getDisableSATDForRD()));
+#endif
+  }
+}
+// P/B FME
 void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRefPicList, int refIdx,
                                         IntTZSearchStruct &cStruct, Mv &best_P_InitMv, const Mv &rcMvInt, Mv &rcMvHalf,
                                         Mv &rcMvQter, Distortion &ruiCost, bool bBi
@@ -7336,6 +7656,8 @@ void InterSearch::xPatternSearchFracDIF(const PredictionUnit &pu, RefPicList eRe
   //  //                                                                            rcMvQter.hor, rcMvQter.ver);
   //}
 }
+
+
 
 Distortion InterSearch::xGetSymmetricCost( PredictionUnit& pu, PelUnitBuf& origBuf, RefPicList eCurRefPicList, const MvField& cCurMvField, MvField& cTarMvField, int bcwIdx )
 {
