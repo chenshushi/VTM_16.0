@@ -52,6 +52,7 @@
 extern int clipAMV    ;
 extern int numSafe    ;
 extern int numUnSafe  ;
+extern bool flgNumRef ;
 extern clock_t srtartTime,endTime,sumTime;
 // forward declaration
 class Mv;

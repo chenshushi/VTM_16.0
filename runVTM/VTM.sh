@@ -76,40 +76,40 @@ LIST_SEQ_AVAILABLE=(
     "BasketballDrillText"   501     50      832     480     8
 )
 LIST_SEQ=(
-    # # D
-    "BasketballPass"        8    50      416     240     8
-    "BlowingBubbles"        8    50      416     240     8
-    "BQSquare"              8    60      416     240     8
-    "RaceHorses"            8    30      416     240     8
-    # # C
-    "BasketballDrill"       8    50      832     480     8
-    "BQMall"                8    60      832     480     8
-    "PartyScene"            8    50      832     480     8
-    "RaceHorsesC"           8    30      832     480     8
-    # # # E
-    "FourPeople"            8    60      1280    720     8
-    "Johnny"                8    60      1280    720     8
-    "KristenAndSara"        8    60      1280    720     8
+    # # # D
+    # "BasketballPass"        100    50      416     240     8
+    # "BlowingBubbles"        100    50      416     240     8
+    # "BQSquare"              100    60      416     240     8
+    # "RaceHorses"            100    30      416     240     8
+    # # # C
+    # "BasketballDrill"       100    50      832     480     8
+    # "BQMall"                100    60      832     480     8
+    # "PartyScene"            100    50      832     480     8
+    # "RaceHorsesC"           100    30      832     480     8
+    # # # # E
+    # "FourPeople"            100    60      1280    720     8
+    # "Johnny"                100    60      1280    720     8
+    # "KristenAndSara"        100    60      1280    720     8
 
-    # screen content
-    "ArenaOfValor"          8    60      1920    1080    8
-    "SlideEditing"          8    30      1280    720     8
-    "SlideShow"             8    20      1280    720     8
-    "BasketballDrillText"   8    50      832     480     8
-    # # B
-    "MarketPlace"           8    60      1920    1080    10
-    "BasketballDrive"       8    50      1920    1080    8
-    "BQTerrace"             8    60      1920    1080    8
-    "Cactus"                8    50      1920    1080    8
-    "RitualDance"           8    60      1920    1080    10
+    # # screen content
+    # "ArenaOfValor"          100    60      1920    1080    8
+    # "SlideEditing"          100    30      1280    720     8
+    # "SlideShow"             100    20      1280    720     8
+    # "BasketballDrillText"   100    50      832     480     8
+    # # # B
+    # "MarketPlace"           100    60      1920    1080    10
+    # "BasketballDrive"       100    50      1920    1080    8
+    # "BQTerrace"             100    60      1920    1080    8
+    # "Cactus"                100    50      1920    1080    8
+    # "RitualDance"           100    60      1920    1080    10
     # # # A1
-    # "FoodMarket4"           32    60      3840    2160    10
-    # "Tango2"                32    60      3840    2160    10
-    # "Campfire"              32    30      3840    2160    10
-    # # A2
-    # "ParkRunning3"          32     50      3840    2160    10
-    # "CatRobot"              32     60      3840    2160    10
-    # "DaylightRoad2"         32     60      3840    2160    10
+    "FoodMarket4"           32    60      3840    2160    10
+    "Tango2"                32    60      3840    2160    10
+    "Campfire"              32    30      3840    2160    10
+    # A2
+    "ParkRunning3"          32     50      3840    2160    10
+    "CatRobot"              32     60      3840    2160    10
+    "DaylightRoad2"         32     60      3840    2160    10
 )
 
 # encoder
@@ -230,6 +230,7 @@ do
 
         # calculate md5
         md5sum ${CSTR_DIR_DST_FUL}${CSTR_CDC}.bin | tee -a $CSTR_LOG_RUN
+        rm -rf ${CSTR_DIR_DST_FUL}${CSTR_CDC}.bin
 
         # update info (psnr)
         ./script/getInfo.py ${CSTR_DIR_DST_FUL}${CSTR_CDC}.log >> $CSTR_LOG_RLT_PSNR

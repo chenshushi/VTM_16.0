@@ -58,23 +58,23 @@
 #define flgAffWeight            1
 #define Aff_Weight_Laplace_sub  0
 //--M2 : Iter -----------
-#define flgIter                 0
+#define flgIter                 1
 //--M3 : BMA-----------
-#define flgBMA                  0
+#define flgBMA                  1
 //--Mx : GaussJordan---------
-#define flgGaussJordan          0
+#define flgGaussJordan          1
 //--Mx : FixPoint------------
-#define flgFixPoint             0
+#define flgFixPoint             1
 //--M4 : HAD4 ---------------
-#define flgHAD4                 0
+#define flgHAD4                 1
 //--M5 : clip MV-------------
-#define flgClipMV               0
+#define flgClipMV               1
 #define clipMvB2                0
 #define clipMvB4                0
 #define clipMvB8                0
-#define clipMvB16               0
+#define clipMvB16               1
 //---M6 : remove point ------
-#define flgRemove               0
+#define flgRemove               1
 //---------------------------
 
 #define CDC_FUNC_CLP(datMin, datMax, dat)    (((dat) < (datMin)) ? (datMin) : (((dat) > (datMax)) ? (datMax) : (dat)))

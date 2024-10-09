@@ -4233,7 +4233,10 @@ void EncCu::xCheckRDCostInter( CodingStructure *&tempCS, CodingStructure *&bestC
 #if GDR_ENABLED
   const bool isEncodeGdrClean = tempCS->sps->getGDREnabledFlag() && tempCS->pcv->isEncoder && ((tempCS->picHeader->getInGdrInterval() && tempCS->isClean(cu.Y().topRight(), CHANNEL_TYPE_LUMA)) || (tempCS->picHeader->getNumVerVirtualBoundaries() == 0));
 #endif
+    // printf("xCheckRDC---Inter:\n");
+    flgNumRef=true;
     m_pcInterSearch->predInterSearch(cu, partitioner);
+    flgNumRef=false;
 
     bcwIdx = CU::getValidBcwIdx(cu);
     if (testBcw && bcwIdx == BCW_DEFAULT)   // Enabled Bcw but the search results is uni.
@@ -4463,8 +4466,10 @@ bool EncCu::xCheckRDCostInterIMV(CodingStructure *&tempCS, CodingStructure *&bes
     testBcw   = (bcwIdx != BCW_DEFAULT);
 
     cu.firstPU->interDir = 10;
-
+    // printf("xCheckRDC---IMV:\n");
+    flgNumRef=false;
     m_pcInterSearch->predInterSearch(cu, partitioner);
+    flgNumRef=false;
 
     if (cu.firstPU->interDir <= 3)
     {

@@ -27,7 +27,7 @@
 #-------------------------------------------------------------------------------
 
 #*** PARAMETER *****************************************************************
-CSTR_CDC     ?= _test_new_weight_8
+CSTR_CDC     ?= _1_ref_A
 CSTR_DIR_PRJ ?= ./VTM
 CSTR_TAG     ?= Test
 CSTR_SESSION := session$(CSTR_CDC)
@@ -65,6 +65,7 @@ create: update
 	mkdir -p  ${CSTR_SESSION}/cfg
 	mkdir -p  ${CSTR_SESSION}/script
 	cp    VTM.sh                          ${CSTR_SESSION}
+	cp    makefile                        ${CSTR_SESSION}
 	cp    $(CSTR_DIR_PRJ)/bin/EncoderAppStatic    ${CSTR_SESSION}/${CSTR_CDC}
 	cp -r $(CSTR_DIR_PRJ)/cfg/*                   ${CSTR_SESSION}/cfg
 	cp    $(CSTR_DIR_PRJ)/script/*                ${CSTR_SESSION}/script

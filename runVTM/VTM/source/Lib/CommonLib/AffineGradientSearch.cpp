@@ -313,18 +313,18 @@ void AffineGradientSearch::xEqualCoeffComputer_Weight( Pel *pResidue, int residu
 {
   int affineParamNum = b6Param ? 6 : 4;
 #if flgAffWeight
-  // int weight [16] ={
-  //   702, 756, 778, 756, 
-  //   756, 837, 882, 837, 
-  //   778, 882, 1000, 882,
-  //   756, 837, 882, 837 
-  // };
-    int weight [16] ={
-    837, 882, 837, 756, 
-    882, 1000, 882,778,
-    837, 882, 837, 756,
-    756, 778, 756, 702
+  int weight [16] ={
+    702, 756, 778, 756, 
+    756, 837, 882, 837, 
+    778, 882, 1000, 882,
+    756, 837, 882, 837 
   };
+  //   int weight [16] ={
+  //   837, 882, 837, 756, 
+  //   882, 1000, 882,778,
+  //   837, 882, 837, 756,
+  //   756, 778, 756, 702
+  // };
   // const int iBit = MAX_CU_DEPTH;
   // int iDMvHorX, iDMvHorY, iDMvVerX, iDMvVerY;
   // iDMvHorX = (mv[2] - mv[0]) * (1 << (iBit - floorLog2(width)));

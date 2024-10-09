@@ -46,6 +46,7 @@
 int numSafe         = 0;
 int numUnSafe       = 0;
 int clipAMV         = 0;
+bool flgNumRef      = false;
 clock_t srtartTime  = 0;
 clock_t endTime     = 0;
 clock_t sumTime     = 0;

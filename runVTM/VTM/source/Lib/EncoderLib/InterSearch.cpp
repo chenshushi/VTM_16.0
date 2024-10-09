@@ -6546,6 +6546,9 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
     pu.interDir            = (refList ? 2 : 1);
     for (int refIdxTemp = 0; refIdxTemp < slice.getNumRefIdx(eRefPicList); refIdxTemp++)
     {
+      if (flgNumRef && (refIdxTemp!=0)) {
+        continue;
+      }
       // Get RefIdx bits
       bitsTemp = mbBits[refList];
       if ( slice.getNumRefIdx(eRefPicList) > 1 )
