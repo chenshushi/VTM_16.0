@@ -4223,6 +4223,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
 #endif
 
       // do affine ME & Merge
+      // printf("Pos_XY (%d,%d) Siz (%03d,%03d) affine type : %d \n",pu.cu->lx(),pu.cu->ly(), pu.Y().width,pu.Y().height, int(pu.cu->affineType));
       cu.affineType = AFFINEMODEL_4PARAM;
       Mv acMvAffine4Para[2][33][3];
 #if GDR_ENABLED
@@ -4286,6 +4287,17 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
             allOk = false;
           }
         }
+        #if flg4or6mode
+          #if flg4mode
+            allOk = false;
+          #endif
+          #if flg6mode
+            allOk = true;
+          #endif
+        #else
+            allOk = allOk;
+        #endif
+
 #endif
 
 #if GDR_ENABLED
@@ -4340,6 +4352,7 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
 
           Distortion uiAffine6Cost = std::numeric_limits<Distortion>::max();
           cu.affineType = AFFINEMODEL_6PARAM;
+          // printf("Pos_XY (%d,%d) Siz (%03d,%03d) affine type : %d \n",pu.cu->lx(),pu.cu->ly(), pu.Y().width,pu.Y().height, int(pu.cu->affineType));
 #if GDR_ENABLED
           xPredAffineInterSearch(pu, origBuf, puIdx, uiLastModeTemp, uiAffine6Cost, cMvHevcTemp, cMvHevcTempSolid, acMvAffine4Para, acMvAffine4ParaSolid, refIdx4Para, bcwIdx, enforceBcwPred,
             ((cu.slice->getSPS()->getUseBcw() == true) ? getWeightIdxBits(bcwIdx) : 0));
@@ -4393,11 +4406,21 @@ void InterSearch::predInterSearch(CodingUnit& cu, Partitioner& partitioner)
 
           // reset to 4 parameter affine inter mode
 #if GDR_ENABLED
+          #if flg4or6mode
+            #if flg6mode
+              if (false)
+            #endif
+            #if flg4mode
+              if (allOk && (uiAffineCost <= uiAffine6Cost))
+            #endif
+          #else
           if (allOk && (uiAffineCost <= uiAffine6Cost))
+          #endif
 #else
           if ( uiAffineCost <= uiAffine6Cost )
 #endif
           {
+            // printf("six mode but use 4\n");
             cu.affineType = AFFINEMODEL_4PARAM;
             pu.interDir = bestInterDir;
             pu.refIdx[0] = bestRefIdx[0];
@@ -6549,6 +6572,7 @@ void InterSearch::xPredAffineInterSearch( PredictionUnit&       pu,
       if (flgNumRef && (refIdxTemp!=0)) {
         continue;
       }
+      // printf("---- Reference !!!:  List: %d idx: %d ----\n",(int)eRefPicList, refIdxTemp);
       // Get RefIdx bits
       bitsTemp = mbBits[refList];
       if ( slice.getNumRefIdx(eRefPicList) > 1 )
@@ -8534,7 +8558,7 @@ srtartTime = clock();
   int bestMvpIdx   = mvpIdx;
   const int width  = pu.Y().width;
   const int height = pu.Y().height;
-  // printf("Siz (%03d,%03d) \n",width,height);
+  // printf("\tME Pos_XY (%d,%d) Siz (%03d,%03d) affine type : %d \n",pu.cu->lx(),pu.cu->ly(),width,height, int(pu.cu->affineType));
   const Picture *refPic = pu.cu->slice->getRefPic(eRefPicList, refIdxPred);
 
   // Set Origin YUV: pcYuv

@@ -97,19 +97,19 @@ LIST_SEQ=(
     # "SlideShow"             100    20      1280    720     8
     # "BasketballDrillText"   100    50      832     480     8
     # # # B
-    # "MarketPlace"           100    60      1920    1080    10
-    # "BasketballDrive"       100    50      1920    1080    8
-    # "BQTerrace"             100    60      1920    1080    8
-    # "Cactus"                100    50      1920    1080    8
-    # "RitualDance"           100    60      1920    1080    10
-    # # # A1
-    "FoodMarket4"           32    60      3840    2160    10
-    "Tango2"                32    60      3840    2160    10
-    "Campfire"              32    30      3840    2160    10
-    # A2
-    "ParkRunning3"          32     50      3840    2160    10
-    "CatRobot"              32     60      3840    2160    10
-    "DaylightRoad2"         32     60      3840    2160    10
+    "MarketPlace"           100    60      1920    1080    10
+    "BasketballDrive"       100    50      1920    1080    8
+    "BQTerrace"             100    60      1920    1080    8
+    "Cactus"                100    50      1920    1080    8
+    "RitualDance"           100    60      1920    1080    10
+    # # # # A1
+    # "FoodMarket4"           32    60      3840    2160    10
+    # "Tango2"                32    60      3840    2160    10
+    # "Campfire"              32    30      3840    2160    10
+    # # A2
+    # "ParkRunning3"          32     50      3840    2160    10
+    # "CatRobot"              32     60      3840    2160    10
+    # "DaylightRoad2"         32     60      3840    2160    10
 )
 
 # encoder

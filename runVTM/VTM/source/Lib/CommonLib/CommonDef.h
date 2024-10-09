@@ -76,6 +76,9 @@
 //---M6 : remove point ------
 #define flgRemove               1
 //---------------------------
+#define flg4or6mode             1
+#define flg4mode               flg4or6mode & 1
+#define flg6mode               flg4or6mode & 0
 
 #define CDC_FUNC_CLP(datMin, datMax, dat)    (((dat) < (datMin)) ? (datMin) : (((dat) > (datMax)) ? (datMax) : (dat)))
 
