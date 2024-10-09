@@ -8696,6 +8696,9 @@ srtartTime = clock();
   for ( int iter=0; iter<iIterTime; iter++ )    // iterate loop
   {
     memcpy( prevIterMv[iter], acMvTemp, sizeof( Mv ) * 3 );
+    if (width != height) {
+      break;
+    }
     int mvWeight[6]={0};
     mvWeight[0] = prevIterMv[iter][0].hor;
     mvWeight[1] = prevIterMv[iter][0].ver;
@@ -9017,7 +9020,7 @@ srtartTime = clock();
   const uint32_t mvShiftTable[3] = {MV_PRECISION_INTERNAL - MV_PRECISION_QUARTER, MV_PRECISION_INTERNAL - MV_PRECISION_INTERNAL, MV_PRECISION_INTERNAL - MV_PRECISION_INT};
   const uint32_t mvShift = mvShiftTable[pu.cu->imv];
   #if flgBMA
-  if (1)
+  if ( width == height)
   #else
   if (uiCostBest <= AFFINE_ME_LIST_MVP_TH*m_hevcCost)
   #endif
